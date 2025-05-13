@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "pubsubtk"
+version = "0.1.0"
+description = "tkinerとpypubsubを組み合わた全く新しい()アーキテクチャ"
+authors = ["va"]
+readme = "README.md"
+packages = [
+    { include = "pubsubtk", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4"
+pypubsub = "^4.0.3"
+pydantic = "^2.11.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
