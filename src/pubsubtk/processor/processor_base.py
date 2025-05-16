@@ -13,6 +13,12 @@ def register_processor(name: str, proc: Type[P]) -> None:
     """
     プロセッサを名前で登録する。
 
+    - ProcessorはUIや他ProcessorからのPubSubイベントを購読し、
+      状態更新や副作用処理を一元的に担う役割を持つ。
+    - store.update_state(store.state.foo, ...) のようなパスプロキシを使うことで、
+      どのProcessorがどの状態を更新しているかIDEで追跡しやすく、
+      大規模開発でも責務分離・可読性・保守性が高まる。
+
     Args:
         name: プロセッサ名
         proc: ProcessorBaseを継承したクラス

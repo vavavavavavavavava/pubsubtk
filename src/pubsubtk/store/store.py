@@ -49,6 +49,9 @@ class Store(Generic[TState]):
     - get_current_state()で状態のディープコピーを取得
     - update_state()/add_to_list()で状態を更新し、PubSubで通知
     - create_partial_state_updater()で部分更新用関数を生成
+    - `store.state.count` のようなパスプロキシを使うことで、
+      `store.update_state(store.state.count, 1)` のようにIDEの「定義へ移動」や補完機能を活用しつつ、
+      状態更新のパスを安全・明示的に指定できる（従来の文字列パス指定の弱点を解消）
     """
 
     def __init__(self, initial_state_class: Type[TState]):
