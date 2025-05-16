@@ -80,9 +80,11 @@ from pubsubtk.processor import ProcessorBase, register_processor
 
 class CounterProcessor(ProcessorBase):
     def setup_subscriptions(self):
+        # PubSubイベント購読
         self.subscribe("increment", self.on_increment)
     def on_increment(self):
-        store.update_state("count", store.get_current_state().count + 1)
+        # store.state.count を使うことでIDE補完や定義ジャンプが効く
+        store.update_state(store.state.count, store.get_current_state().count + 1)
 
 register_processor("counter", CounterProcessor)
 ```
@@ -119,7 +121,8 @@ def on_count_changed(old_value, new_value):
     print(f"Count changed: {old_value} -> {new_value}")
 
 store = create_store(AppState)
-store.update_state("count", 1)
+# 文字列パスも使えるが、推奨は store.state.count でIDE補完・追跡性を活かす
+store.update_state(store.state.count, 1)
 ```
 
 ## API概要
