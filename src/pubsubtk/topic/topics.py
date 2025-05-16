@@ -3,9 +3,10 @@ from enum import StrEnum, auto
 
 class AutoNamedTopic(StrEnum):
     """
-    - メンバー名を auto() で name.lower() に
-    - __new__ で {ClassName}.{value} に自動変換
-    - str() や比較でそのまま使える
+    Enumメンバー名を自動で小文字化し、クラス名のプレフィックス付き文字列を値とする列挙型。
+
+    - メンバー値は "ClassName.member" 形式の文字列
+    - str()や比較でそのまま利用可能
     """
 
     def _generate_next_value_(name, start, count, last_values):
@@ -23,6 +24,10 @@ class AutoNamedTopic(StrEnum):
 
 
 class DefaultNavigateTopic(AutoNamedTopic):
+    """
+    標準的な画面遷移・ウィンドウ操作用のPubSubトピック列挙型。
+    """
+
     SWITCH_CONTAINER = auto()
     OPEN_SUBWINDOW = auto()
     CLOSE_SUBWINDOW = auto()
@@ -30,5 +35,9 @@ class DefaultNavigateTopic(AutoNamedTopic):
 
 
 class DefaultUpdateTopic(AutoNamedTopic):
+    """
+    標準的な状態更新通知用のPubSubトピック列挙型。
+    """
+
     STATE_CHANGED = auto()
     STATE_ADDED = auto()

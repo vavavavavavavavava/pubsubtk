@@ -5,8 +5,11 @@ from typing import Any
 
 class UIMixin(ABC):
     """
-    ・__init__ で setup_ui() を呼び出す
-    ・サブクラスは setup_ui() を実装するだけ
+    UIコンポーネント用の基底Mixin。
+
+    - __init__でsetup_ui()を自動呼び出し
+    - サブクラスはsetup_ui()のみを実装すればよい
+    - レイアウトやウィジェット構築の共通化
     """
 
     def __init__(self, parent: tk.Widget, **kwargs: Any):
@@ -17,6 +20,7 @@ class UIMixin(ABC):
     @abstractmethod
     def setup_ui(self) -> None:
         """
-        ウィジェット構築とレイアウトを行うメソッド
+        ウィジェット構築とレイアウトを行うメソッド。
+        サブクラスで実装する。
         """
         pass

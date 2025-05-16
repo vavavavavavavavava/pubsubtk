@@ -6,9 +6,12 @@ from pubsub import pub
 
 class PubSubBase(ABC):
     """
-    抽象 PubSub 基底。
-    - __init__ 内で setup_subscriptions() を自動呼び出し
-    - subscribe()/send_message()/teardown() を提供
+    PubSubパターンの基底クラス。
+
+    - setup_subscriptions()で購読設定を行う抽象メソッドを提供
+    - subscribe()/send_message()/unsubscribe()/unsubscribe_all()で購読管理
+    - teardown()で全購読解除
+    - 継承先で購読設定を簡潔に記述可能
     """
 
     def __init__(self):
@@ -38,8 +41,9 @@ class PubSubBase(ABC):
     @abstractmethod
     def setup_subscriptions(self) -> None:
         """
-        継承先で購読設定を行う。
-        Example:
+        継承先で購読設定を行うためのメソッド。
+
+        例:
             class MyPS(PubSubBase):
                 def setup_subscriptions(self):
                     self.subscribe(TopicEnum.STATE_CHANGED, self.on_change)
@@ -47,5 +51,7 @@ class PubSubBase(ABC):
         pass
 
     def teardown(self) -> None:
-        """全購読を解除"""
+        """
+        全ての購読を解除する。
+        """
         self.unsubscribe_all()

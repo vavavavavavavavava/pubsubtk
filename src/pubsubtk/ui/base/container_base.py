@@ -3,14 +3,18 @@ from abc import abstractmethod
 from tkinter import ttk
 from typing import Any
 
-from pubsubtk.core.api import get_store
 from pubsubtk.core.pubsub_base import PubSubBase
+from pubsubtk.store.store import get_store
 from pubsubtk.ui.base.component_base import UIMixin
 
 
 class ContainerMixin(UIMixin, PubSubBase):
     """
-    PubSub 連携用コンテナコンポーネント Mixin
+    PubSub連携用のコンテナコンポーネントMixin。
+
+    - Storeインスタンスを取得し、購読設定・状態反映を自動実行
+    - setup_subscriptions()/refresh_from_state()をサブクラスで実装
+    - destroy時に購読解除(teardown)も自動
     """
 
     def __init__(self, parent: tk.Widget, **kwargs: Any):
@@ -22,12 +26,18 @@ class ContainerMixin(UIMixin, PubSubBase):
 
     @abstractmethod
     def setup_subscriptions(self) -> None:
-        """Store の更新購読を設定するメソッド"""
+        """
+        Storeの更新購読を設定するメソッド。
+        サブクラスで実装する。
+        """
         ...
 
     @abstractmethod
     def refresh_from_state(self) -> None:
-        """購読通知または初期化時に UI を更新するメソッド"""
+        """
+        購読通知または初期化時にUIを状態で更新するメソッド。
+        サブクラスで実装する。
+        """
         ...
 
     def destroy(self) -> None:
@@ -37,13 +47,17 @@ class ContainerMixin(UIMixin, PubSubBase):
 
 # tk.Frame ベース の抽象クラス
 class ContainerComponentTk(tk.Frame, ContainerMixin):
-    """純粋な tk.Frame ベース の PubSub 連携コンテナ"""
+    """
+    標準tk.FrameベースのPubSub連携コンテナ。
+    """
 
     pass
 
 
 # ttk.Frame ベース の抽象クラス
 class ContainerComponentTtk(ttk.Frame, ContainerMixin):
-    """テーマ対応 ttk.Frame ベース の PubSub 連携コンテナ"""
+    """
+    テーマ対応ttk.FrameベースのPubSub連携コンテナ。
+    """
 
     pass

@@ -8,7 +8,10 @@ from pubsubtk.ui.base.component_base import UIMixin
 
 class PresentationalMixin(UIMixin):
     """
-    表示専用コンポーネント用 Mixin
+    表示専用コンポーネント用のMixin。
+
+    - 外部データでUIを更新するupdate_data()を抽象メソッドとして提供
+    - 任意のイベントハンドラ登録・発火機能を持つ
     """
 
     def __init__(self, parent: tk.Widget, **kwargs: Any):
@@ -18,7 +21,8 @@ class PresentationalMixin(UIMixin):
     @abstractmethod
     def update_data(self, *args: Any, **kwargs: Any) -> None:
         """
-        外部データで UI を更新するメソッド
+        外部データでUIを更新するためのメソッド。
+        サブクラスで実装する。
         """
         ...
 
@@ -32,13 +36,17 @@ class PresentationalMixin(UIMixin):
 
 # tk.Frame ベース の抽象クラス
 class PresentationalComponentTk(tk.Frame, PresentationalMixin):
-    """純粋な tk.Frame ベース の表示専用コンポーネント"""
+    """
+    標準tk.Frameベースの表示専用コンポーネント。
+    """
 
     pass
 
 
 # ttk.Frame ベース の抽象クラス
 class PresentationalComponentTtk(ttk.Frame, PresentationalMixin):
-    """テーマ対応 ttk.Frame ベース の表示専用コンポーネント"""
+    """
+    テーマ対応ttk.Frameベースの表示専用コンポーネント。
+    """
 
     pass

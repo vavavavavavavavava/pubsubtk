@@ -12,6 +12,7 @@ packages = [
 python = ">=3.11,<4"
 pypubsub = "^4.0.3"
 pydantic = "^2.11.4"
+ttkthemes = "^3.2.2"
 
 
 [build-system]
