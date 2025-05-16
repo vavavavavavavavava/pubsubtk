@@ -1,12 +1,10 @@
 import tkinter as tk
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from tkinter import ttk
 from typing import Any, Callable, Dict
 
-from pubsubtk.ui.base.component_base import UIMixin
 
-
-class PresentationalMixin(UIMixin):
+class PresentationalMixin(ABC):
     """
     表示専用コンポーネント用のMixin。
 
@@ -14,9 +12,17 @@ class PresentationalMixin(UIMixin):
     - 任意のイベントハンドラ登録・発火機能を持つ
     """
 
-    def __init__(self, parent: tk.Widget, **kwargs: Any):
+    def __init__(self, *args, **kwargs):
         self._handlers: Dict[str, Callable[..., Any]] = {}
-        super().__init__(parent, **kwargs)
+        self.setup_ui()
+
+    @abstractmethod
+    def setup_ui(self) -> None:
+        """
+        ウィジェット構築とレイアウトを行うメソッド。
+        サブクラスで実装する。
+        """
+        pass
 
     @abstractmethod
     def update_data(self, *args: Any, **kwargs: Any) -> None:
@@ -35,18 +41,20 @@ class PresentationalMixin(UIMixin):
 
 
 # tk.Frame ベース の抽象クラス
-class PresentationalComponentTk(tk.Frame, PresentationalMixin):
+class PresentationalComponentTk(PresentationalMixin, tk.Frame):
     """
     標準tk.Frameベースの表示専用コンポーネント。
     """
 
-    pass
+    def __init__(self, parent: tk.Widget, **kwargs: Any):
+        super().__init__(parent, **kwargs)
 
 
 # ttk.Frame ベース の抽象クラス
-class PresentationalComponentTtk(ttk.Frame, PresentationalMixin):
+class PresentationalComponentTtk(PresentationalMixin, ttk.Frame):
     """
     テーマ対応ttk.Frameベースの表示専用コンポーネント。
     """
 
-    pass
+    def __init__(self, parent: tk.Widget, **kwargs: Any):
+        super().__init__(parent, **kwargs)

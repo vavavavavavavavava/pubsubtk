@@ -14,7 +14,7 @@ class PubSubBase(ABC):
     - 継承先で購読設定を簡潔に記述可能
     """
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self._subscriptions: List[Dict[str, Any]] = []
         self.setup_subscriptions()
 

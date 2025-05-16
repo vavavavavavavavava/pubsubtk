@@ -1,14 +1,13 @@
 import tkinter as tk
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from tkinter import ttk
 from typing import Any
 
 from pubsubtk.core.pubsub_base import PubSubBase
 from pubsubtk.store.store import get_store
-from pubsubtk.ui.base.component_base import UIMixin
 
 
-class ContainerMixin(UIMixin, PubSubBase):
+class ContainerMixin(PubSubBase, ABC):
     """
     PubSub連携用のコンテナコンポーネントMixin。
 
@@ -17,12 +16,20 @@ class ContainerMixin(UIMixin, PubSubBase):
     - destroy時に購読解除(teardown)も自動
     """
 
-    def __init__(self, parent: tk.Widget, **kwargs: Any):
-        super().__init__(parent, **kwargs)
-        PubSubBase.__init__(self)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.store = get_store()
         self.setup_subscriptions()
+        self.setup_ui()
         self.refresh_from_state()
+
+    @abstractmethod
+    def setup_ui(self) -> None:
+        """
+        ウィジェット構築とレイアウトを行うメソッド。
+        サブクラスで実装する。
+        """
+        pass
 
     @abstractmethod
     def setup_subscriptions(self) -> None:
@@ -46,18 +53,20 @@ class ContainerMixin(UIMixin, PubSubBase):
 
 
 # tk.Frame ベース の抽象クラス
-class ContainerComponentTk(tk.Frame, ContainerMixin):
+class ContainerComponentTk(ContainerMixin, tk.Frame):
     """
     標準tk.FrameベースのPubSub連携コンテナ。
     """
 
-    pass
+    def __init__(self, parent: tk.Widget, **kwargs: Any):
+        super().__init__(parent, **kwargs)
 
 
 # ttk.Frame ベース の抽象クラス
-class ContainerComponentTtk(ttk.Frame, ContainerMixin):
+class ContainerComponentTtk(ContainerMixin, ttk.Frame):
     """
     テーマ対応ttk.FrameベースのPubSub連携コンテナ。
     """
 
-    pass
+    def __init__(self, parent: tk.Widget, **kwargs: Any):
+        super().__init__(parent, **kwargs)

@@ -17,8 +17,11 @@ def _default_poll(loop: asyncio.AbstractEventLoop, root: tk.Tk, interval: int) -
     root.after(interval, _default_poll, loop, root, interval)
 
 
-class ApplicationCommon:
+class ApplicationCommon(PubSubBase):
     """Tk/Ttk いずれのウィンドウクラスでも共通の機能を提供する Mixin"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def init_common(self, title: str, geometry: str) -> None:
         # ウィンドウ基本設定
@@ -106,28 +109,30 @@ class ApplicationCommon:
         self.destroy()
 
 
-class TkApplication(ApplicationCommon, PubSubBase, tk.Tk):
+class TkApplication(ApplicationCommon, tk.Tk):
     def __init__(
-        self,
-        *args: Any,
-        title: str = "Tk App",
-        geometry: str = "800x600",
-        **kwargs: Any,
+        self, title: str = "Tk App", geometry: str = "800x600", *args, **kwargs
     ):
-        PubSubBase.__init__(self)  # setup_subscriptions() が呼ばれる
-        tk.Tk.__init__(self, *args, **kwargs)  # ウィンドウ初期化
-        self.init_common(title, geometry)  # 共通部分の初期化
+        # **first** initialize the actual Tk
+        tk.Tk.__init__(self, *args, **kwargs)
+        # **then** initialize the PubSub mixin
+        ApplicationCommon.__init__(self)
+        # now do your common window setup
+        self.init_common(title, geometry)
 
 
-class ThemedApplication(ApplicationCommon, PubSubBase, ThemedTk):
+class ThemedApplication(ApplicationCommon, ThemedTk):
     def __init__(
         self,
-        *args: Any,
         theme: str = "arc",
         title: str = "Themed App",
         geometry: str = "800x600",
-        **kwargs: Any,
+        *args,
+        **kwargs,
     ):
-        PubSubBase.__init__(self)  # setup_subscriptions()
+        # initialize the themed‐Tk
         ThemedTk.__init__(self, *args, theme=theme, **kwargs)
+        # mixin init
+        ApplicationCommon.__init__(self)
+        # then common setup
         self.init_common(title, geometry)
