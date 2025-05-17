@@ -69,11 +69,11 @@ class Store(Generic[TState]):
         self._cached_version: int = -1
 
     @property
-    def state(self) -> StateProxy[TState]:
+    def state(self) -> TState:
         """
         状態への動的パスアクセス用プロキシを返す。
         """
-        return cast(StateProxy[TState], StateProxy(self))
+        return cast(TState, StateProxy(self))
 
     def get_current_state(self) -> TState:
         """
@@ -209,7 +209,7 @@ class Store(Generic[TState]):
 
 
 # 実体としてはどんな State 型でも格納できるので Any
-_store: Optional[Store[Any]] = None
+_store: Optional[Store[TState]] = None
 
 
 def create_store(state: Type[TState]) -> Store[TState]:
