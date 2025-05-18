@@ -8,12 +8,16 @@ from pubsubtk import (
 
 
 def main():
+    # アプリケーションのインスタンスを作成し、状態クラスを渡す
     app = TkApplication(state_cls=AppState)
 
+    # TaskProcessorをアプリケーションに登録
     app.register_processor(TaskProcessor)
 
+    # アプリケーション開始時に表示するコンテナを設定
     app.switch_container(TaskListContainer)
 
+    # アプリケーションのメインループを開始
     app.run()
 
 

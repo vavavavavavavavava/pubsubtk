@@ -1,8 +1,9 @@
 import tkinter as tk
 from typing import List, Optional
 
-from pubsubtk import PresentationalComponentTk
 from pydantic import BaseModel
+
+from pubsubtk import PresentationalComponentTk
 
 
 class TaskItem(BaseModel):
@@ -87,45 +88,3 @@ class TaskListView(PresentationalComponentTk):
             )
 
             self.task_views.append(view)
-
-
-# ...existing code...
-
-if __name__ == "__main__":
-    import tkinter as tk
-
-    # ダミーの TaskItem クラス（本来は app_state からインポート）
-    class TaskItem:
-        def __init__(self, id, title, completed=False):
-            self.id = id
-            self.title = title
-            self.completed = completed
-
-    # サンプルデータ
-    tasks = [
-        TaskItem(1, "タスクA", False),
-        TaskItem(2, "タスクB", True),
-        TaskItem(3, "タスクC", False),
-    ]
-
-    def on_event(event_name, **kwargs):
-        print(f"イベント: {event_name}, データ: {kwargs}")
-
-    root = tk.Tk()
-    root.title("TaskListView サンプル")
-
-    task_list_view = TaskListView(root)
-    task_list_view.pack(fill=tk.BOTH, expand=True)
-    task_list_view.update_data(tasks, selected_id=2)
-    task_list_view.register_handler(
-        "toggle", lambda task_id: on_event("toggle", task_id=task_id)
-    )
-    task_list_view.register_handler(
-        "delete", lambda task_id: on_event("delete", task_id=task_id)
-    )
-    task_list_view.register_handler(
-        "select", lambda task_id: on_event("select", task_id=task_id)
-    )
-
-    root.mainloop()
-# ...existing code...
