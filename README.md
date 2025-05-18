@@ -367,12 +367,12 @@ if __name__ == "__main__":
 
 ## API概要
 
-- `Store[TState]`: 型安全な状態管理クラス
-- `PubSubBase`: PubSub購読/通知の基底クラス
+- `Store[TState]`, `get_store`: 型安全な状態管理クラス
+- `AutoNamedTopic`: メンバー名を小文字化し、クラス名をプレフィックスとするトピック列挙型。
 - `PresentationalComponentTk/Ttk`: 表示専用UIコンポーネント
 - `ContainerComponentTk/Ttk`: PubSub購読付きUIコンテナ
 - `TkApplication/ThemedApplication`: アプリケーション本体
-- `ProcessorBase`, `register_processor`, `delete_processor`: 任意のロジックを担うProcessorの基底・管理API
+- `ProcessorBase`: 任意のロジックを担うProcessorの基底
 
 ## ライセンス
 
