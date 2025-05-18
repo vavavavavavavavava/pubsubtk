@@ -1,4 +1,6 @@
-from typing import Any, Callable, Optional, Type
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, Optional, Type
 
 from pubsubtk.core.pubsub_base import PubSubBase
 from pubsubtk.topic.topics import (
@@ -7,18 +9,23 @@ from pubsubtk.topic.topics import (
     DefaultUpdateTopic,
 )
 
+if TYPE_CHECKING:
+    # 型チェック時（mypy や IDE 補完時）のみ読み込む
+    from pubsubtk.processor.processor_base import ProcessorBase
+    from pubsubtk.ui.base.container_base import ContainerComponentType
+
 
 class PubSubDefaultTopicBase(PubSubBase):
     def pub_switch_container(
         self,
-        cls: Any,
+        cls: ContainerComponentType,
         **kwargs: Any,
     ):
         self.publish(DefaultNavigateTopic.SWITCH_CONTAINER, cls=cls, **kwargs)
 
     def pub_open_subwindow(
         self,
-        cls: Any,
+        cls: ContainerComponentType,
         win_id: Optional[str] = None,
         **kwargs: Any,
     ):
@@ -44,7 +51,9 @@ class PubSubDefaultTopicBase(PubSubBase):
             DefaultUpdateTopic.ADD_TO_LIST, state_path=str(state_path), item=item
         )
 
-    def pub_registor_processor(self, proc: Type[Any], name: Optional[str] = None):
+    def pub_registor_processor(
+        self, proc: Type[ProcessorBase], name: Optional[str] = None
+    ):
         self.publish(DefaultProcessorTopic.REGISTOR_PROCESSOR, proc=proc, name=name)
 
     def pub_delete_processor(self, name: str):
