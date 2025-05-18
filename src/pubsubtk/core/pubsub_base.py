@@ -22,7 +22,7 @@ class PubSubBase(ABC):
         pub.subscribe(handler, topic, **kwargs)
         self._subscriptions.append({"topic": topic, "handler": handler})
 
-    def send_message(self, topic: str, **kwargs) -> None:
+    def publish(self, topic: str, **kwargs) -> None:
         pub.sendMessage(topic, **kwargs)
 
     def unsubscribe(self, topic: str, handler: Callable) -> None:

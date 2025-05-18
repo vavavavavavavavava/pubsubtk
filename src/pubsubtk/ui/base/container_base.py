@@ -1,13 +1,19 @@
+# container.py
+
 import tkinter as tk
 from abc import ABC, abstractmethod
 from tkinter import ttk
-from typing import Any
+from typing import Any, Generic, Type, TypeVar
 
-from pubsubtk.core.pubsub_base import PubSubBase
-from pubsubtk.store.store import get_store
+from pydantic import BaseModel
+
+from pubsubtk.core.default_topic_base import PubSubDefaultTopicBase
+from pubsubtk.store.store import Store
+
+TState = TypeVar("TState", bound=BaseModel)
 
 
-class ContainerMixin(PubSubBase, ABC):
+class ContainerMixin(PubSubDefaultTopicBase, ABC, Generic[TState]):
     """
     PubSub連携用のコンテナコンポーネントMixin。
 
@@ -16,10 +22,16 @@ class ContainerMixin(PubSubBase, ABC):
     - destroy時に購読解除(teardown)も自動
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, store: Store[TState], *args, **kwargs: Any):
+        """
+        Args:
+            state_cls: Pydanticモデルの型（例: AppState）
+        """
+        # 型引数付きの Store[TState] を取得
+        self.store: Store[TState] = store
+
         super().__init__(*args, **kwargs)
-        self.store = get_store()
-        self.setup_subscriptions()
+
         self.setup_ui()
         self.refresh_from_state()
 
@@ -27,14 +39,6 @@ class ContainerMixin(PubSubBase, ABC):
     def setup_ui(self) -> None:
         """
         ウィジェット構築とレイアウトを行うメソッド。
-        サブクラスで実装する。
-        """
-        pass
-
-    @abstractmethod
-    def setup_subscriptions(self) -> None:
-        """
-        Storeの更新購読を設定するメソッド。
         サブクラスで実装する。
         """
         ...
@@ -48,25 +52,31 @@ class ContainerMixin(PubSubBase, ABC):
         ...
 
     def destroy(self) -> None:
+        """
+        ウィジェット破棄時に購読を解除してから破棄処理を行う。
+        """
         self.teardown()
         super().destroy()
 
 
-# tk.Frame ベース の抽象クラス
-class ContainerComponentTk(ContainerMixin, tk.Frame):
+class ContainerComponentTk(ContainerMixin[TState], tk.Frame, Generic[TState]):
     """
     標準tk.FrameベースのPubSub連携コンテナ。
     """
 
-    def __init__(self, parent: tk.Widget, **kwargs: Any):
-        super().__init__(parent, **kwargs)
+    def __init__(self, parent: tk.Widget, store: Store[TState], *args, **kwargs: Any):
+        tk.Frame.__init__(self, master=parent, *args, **kwargs)
+        ContainerMixin.__init__(self, store=store, *args, **kwargs)
 
 
-# ttk.Frame ベース の抽象クラス
-class ContainerComponentTtk(ContainerMixin, ttk.Frame):
+class ContainerComponentTtk(ContainerMixin[TState], ttk.Frame, Generic[TState]):
     """
     テーマ対応ttk.FrameベースのPubSub連携コンテナ。
     """
 
-    def __init__(self, parent: tk.Widget, **kwargs: Any):
-        super().__init__(parent, **kwargs)
+    def __init__(self, parent: tk.Widget, store: Store[TState], *args, **kwargs: Any):
+        tk.Frame.__init__(self, master=parent, *args, **kwargs)
+        ContainerMixin.__init__(self, store=store, *args, **kwargs)
+
+
+ContainerComponentType = Type[ContainerComponentTk] | Type[ContainerComponentTtk]

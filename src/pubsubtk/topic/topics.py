@@ -39,5 +39,16 @@ class DefaultUpdateTopic(AutoNamedTopic):
     標準的な状態更新通知用のPubSubトピック列挙型。
     """
 
+    UPDATE_STATE = auto()
+    ADD_TO_LIST = auto()
     STATE_CHANGED = auto()
     STATE_ADDED = auto()
+
+
+class DefaultProcessorTopic(AutoNamedTopic):
+    """
+    標準的なプロセッサ管理のPubSubトピック列挙型。
+    """
+
+    REGISTOR_PROCESSOR = auto()
+    DELETE_PROCESSOR = auto()

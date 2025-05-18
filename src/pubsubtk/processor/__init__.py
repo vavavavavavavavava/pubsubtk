@@ -1,3 +1,3 @@
-from .processor_base import ProcessorBase, delete_processor, register_processor
+from .processor_base import ProcessorBase
 
-__all__ = ["register_processor", "delete_processor", "ProcessorBase"]
+__all__ = ["ProcessorBase"]

@@ -4,6 +4,7 @@ from typing import Any, Generic, Optional, Type, TypeVar, cast
 from pubsub import pub
 from pydantic import BaseModel
 
+from pubsubtk.core.pubsub_base import PubSubBase
 from pubsubtk.topic.topics import DefaultUpdateTopic
 
 TState = TypeVar("TState", bound=BaseModel)
@@ -36,12 +37,12 @@ class StateProxy(Generic[TState]):
         return StateProxy(self._store, new_path)
 
     def __repr__(self) -> str:
-        return f"store.state.{self._path}"
+        return f"{self._path}"
 
     __str__ = __repr__
 
 
-class Store(Generic[TState]):
+class Store(PubSubBase, Generic[TState]):
     """
     型安全な状態管理を提供するジェネリックなStoreクラス。
 
@@ -68,6 +69,10 @@ class Store(Generic[TState]):
         self._cached_state: Optional[TState] = None
         self._cached_version: int = -1
 
+    def setup_subscriptions(self):
+        self.subscribe(DefaultUpdateTopic.UPDATE_STATE, self.update_state)
+        self.subscribe(DefaultUpdateTopic.ADD_TO_LIST, self.add_to_list)
+
     @property
     def state(self) -> TState:
         """
@@ -79,13 +84,13 @@ class Store(Generic[TState]):
         """
         現在の状態のディープコピーを返す。キャッシュを利用。
         """
-        with self._lock:
-            if self._cached_state is None or self._cached_version != self._version:
-                self._cached_state = self._state.model_copy(deep=True)
-                self._cached_version = self._version
-            return self._cached_state
 
-    def update_state(self, path: str, new_value: Any) -> None:
+        if self._cached_state is None or self._cached_version != self._version:
+            self._cached_state = self._state.model_copy(deep=True)
+            self._cached_version = self._version
+        return self._cached_state
+
+    def update_state(self, state_path: str, new_value: Any) -> None:
         """
         指定パスの属性を新しい値で更新し、PubSubで変更通知を送信する。
 
@@ -93,20 +98,20 @@ class Store(Generic[TState]):
             path: 属性パス（例: "foo.bar"）
             new_value: 新しい値
         """
-        with self._lock:
-            target_obj, attr_name, old_value = self._resolve_path(path)
 
-            # 新しい値を設定する前に型チェック
-            self._validate_and_set_value(target_obj, attr_name, new_value)
-            self._version += 1
+        target_obj, attr_name, old_value = self._resolve_path(str(state_path))
 
-        pub.sendMessage(
-            f"{DefaultUpdateTopic.STATE_CHANGED}.{path}",
+        # 新しい値を設定する前に型チェック
+        self._validate_and_set_value(target_obj, attr_name, new_value)
+        self._version += 1
+
+        self.publish(
+            f"{DefaultUpdateTopic.STATE_CHANGED}.{state_path}",
             old_value=old_value,
             new_value=new_value,
         )
 
-    def add_to_list(self, path: str, item: Any) -> None:
+    def add_to_list(self, state_path: str, item: Any) -> None:
         """
         指定パスのリスト属性に要素を追加し、PubSubで追加通知を送信する。
 
@@ -114,23 +119,23 @@ class Store(Generic[TState]):
             path: 属性パス
             item: 追加する要素
         """
-        with self._lock:
-            target_obj, attr_name, current_list = self._resolve_path(path)
 
-            if not isinstance(current_list, list):
-                raise TypeError(f"Property at '{path}' is not a list")
+        target_obj, attr_name, current_list = self._resolve_path(str(state_path))
 
-            # リストをコピーして新しい要素を追加
-            new_list = current_list.copy()
-            new_list.append(item)
+        if not isinstance(current_list, list):
+            raise TypeError(f"Property at '{state_path}' is not a list")
 
-            # 新しいリストで更新
-            self._validate_and_set_value(target_obj, attr_name, new_list)
-            self._version += 1
-            index = len(new_list) - 1
+        # リストをコピーして新しい要素を追加
+        new_list = current_list.copy()
+        new_list.append(item)
+
+        # 新しいリストで更新
+        self._validate_and_set_value(target_obj, attr_name, new_list)
+        self._version += 1
+        index = len(new_list) - 1
 
         pub.sendMessage(
-            f"{DefaultUpdateTopic.STATE_ADDED}.{path}",
+            f"{DefaultUpdateTopic.STATE_ADDED}.{state_path}",
             item=item,
             index=index,
         )
@@ -209,36 +214,35 @@ class Store(Generic[TState]):
 
 
 # 実体としてはどんな State 型でも格納できるので Any
-_store: Optional[Store[TState]] = None
+_store: Optional[Store[Any]] = None
 
 
-def create_store(state: Type[TState]) -> Store[TState]:
+def get_store(state_cls: Type[TState]) -> Store[TState]:
     """
-    Storeインスタンスを生成し、グローバルに登録する。
+    Store を取得します。未生成の場合は state_cls で新規に作成し、
+    それ以外は既存のインスタンスを返します。
 
-    Args:
-        state: Pydanticモデルの型
-    Returns:
-        Store[TState]インスタンス
-    Raises:
-        RuntimeError: 既にStoreが生成済みの場合
+    同じモジュール内で異なる state_cls を渡すと RuntimeError を投げます。
     """
     global _store
-    if _store is not None:
-        raise RuntimeError("Store is already created. Call get_store() instead.")
-    _store = Store(state)
-    return _store  # 型引数付き Store[TState] と推論されます
-
-
-def get_store() -> Store[Any]:
-    """
-    既存のStoreインスタンスを返す。
-
-    Returns:
-        Store[Any]インスタンス
-    Raises:
-        RuntimeError: Storeが未生成の場合
-    """
     if _store is None:
-        raise RuntimeError("Store is not created yet. Call create_store(state) first.")
-    return _store
+        _store = Store(state_cls)
+    else:
+        existing = getattr(_store, "_state_class", None)
+        if existing is not state_cls:
+            raise RuntimeError(
+                f"Store は既に {existing!r} で生成されています（呼び出し時の state_cls={state_cls!r}）"
+            )
+    return cast(Store[TState], _store)
+
+
+if __name__ == "__main__":
+    from pydantic import BaseModel
+
+    class AppState(BaseModel):
+        count: int = 0
+
+    store = get_store(AppState)
+    store.state.count
+    store = get_store(AppState)
+    store.state

@@ -46,8 +46,9 @@ class PresentationalComponentTk(PresentationalMixin, tk.Frame):
     標準tk.Frameベースの表示専用コンポーネント。
     """
 
-    def __init__(self, parent: tk.Widget, **kwargs: Any):
-        super().__init__(parent, **kwargs)
+    def __init__(self, parent: tk.Widget, *args, **kwargs):
+        tk.Frame.__init__(self, master=parent, *args, **kwargs)
+        PresentationalMixin.__init__(self, *args, **kwargs)
 
 
 # ttk.Frame ベース の抽象クラス
@@ -56,5 +57,6 @@ class PresentationalComponentTtk(PresentationalMixin, ttk.Frame):
     テーマ対応ttk.Frameベースの表示専用コンポーネント。
     """
 
-    def __init__(self, parent: tk.Widget, **kwargs: Any):
-        super().__init__(parent, **kwargs)
+    def __init__(self, parent: tk.Widget, *args, **kwargs):
+        tk.Frame.__init__(self, master=parent, *args, **kwargs)
+        PresentationalMixin.__init__(self, *args, **kwargs)

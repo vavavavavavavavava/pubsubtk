@@ -1,11 +1,18 @@
 import asyncio
 import tkinter as tk
-from typing import Any, Dict, Optional, Tuple, Type
+from typing import Any, Dict, Generic, Optional, Tuple, Type, TypeVar
 
+from pydantic import BaseModel
 from ttkthemes import ThemedTk
 
 from pubsubtk.core.pubsub_base import PubSubBase
-from pubsubtk.topic.topics import DefaultNavigateTopic
+from pubsubtk.processor.processor_base import ProcessorBase
+from pubsubtk.store.store import get_store
+from pubsubtk.topic.topics import DefaultNavigateTopic, DefaultProcessorTopic
+from pubsubtk.ui.base.container_base import ContainerComponentType
+
+TState = TypeVar("TState", bound=BaseModel)
+P = TypeVar("P", bound=ProcessorBase)
 
 
 def _default_poll(loop: asyncio.AbstractEventLoop, root: tk.Tk, interval: int) -> None:
@@ -17,11 +24,14 @@ def _default_poll(loop: asyncio.AbstractEventLoop, root: tk.Tk, interval: int) -
     root.after(interval, _default_poll, loop, root, interval)
 
 
-class ApplicationCommon(PubSubBase):
+class ApplicationCommon(PubSubBase, Generic[TState]):
     """Tk/Ttk いずれのウィンドウクラスでも共通の機能を提供する Mixin"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, state_cls: Type[TState], *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.state_cls = state_cls
+        self.store = get_store(state_cls)
+        self._processors: Dict[str, ProcessorBase] = {}
 
     def init_common(self, title: str, geometry: str) -> None:
         # ウィンドウ基本設定
@@ -42,35 +52,91 @@ class ApplicationCommon(PubSubBase):
         self.subscribe(DefaultNavigateTopic.OPEN_SUBWINDOW, self.open_subwindow)
         self.subscribe(DefaultNavigateTopic.CLOSE_SUBWINDOW, self.close_subwindow)
         self.subscribe(
-            DefaultNavigateTopic.CLOSE_ALL_SUBWINDOWS,
-            self.close_all_subwindows,
+            DefaultNavigateTopic.CLOSE_ALL_SUBWINDOWS, self.close_all_subwindows
         )
+        self.subscribe(
+            DefaultProcessorTopic.REGISTOR_PROCESSOR, self.register_processor
+        )
+        self.subscribe(DefaultProcessorTopic.DELETE_PROCESSOR, self.delete_processor)
+
+    def register_processor(self, proc: Type[P], name: Optional[str] = None) -> str:
+        """
+        プロセッサを名前で登録し、登録キーを返します。
+
+        Args:
+            proc: ProcessorBaseを継承したクラス
+            name: 任意のプロセッサ名。未指定時はクラス名を使用し、重複する場合は接尾辞を追加します。
+        Returns:
+            登録に使用したプロセッサ名
+        Raises:
+            KeyError: 既に同名のプロセッサが登録済みの場合（自動生成でも重複が解消されない場合）
+        """
+        # ベース名決定
+        base_key = name or proc.__name__
+        key = base_key
+        suffix = 1
+        # 重複を回避
+        while key in self._processors:
+            key = f"{base_key}_{suffix}"
+            suffix += 1
+
+        # インスタンス化して登録
+        self._processors[key] = proc(store=self.store)
+        return key
+
+    def delete_processor(self, name: str) -> None:
+        """
+        登録済みプロセッサを削除し、teardown()を呼び出します。
+        """
+        if name not in self._processors:
+            raise KeyError(f"Processor '{name}' not found.")
+        self._processors[name].teardown()
+        del self._processors[name]
 
     def switch_container(
         self,
-        cls: Type[tk.Widget],
-        *args: Any,
+        cls: ContainerComponentType,
         **kwargs: Any,
     ) -> None:
         if self.active:
             self.active.destroy()
-        self.active = cls(self.main_frame, *args, **kwargs)
+        self.active = cls(parent=self.main_frame, store=self.store, **kwargs)
         self.active.pack(fill=tk.BOTH, expand=True)
 
     def open_subwindow(
         self,
-        win_id: str,
-        cls: Type[tk.Widget],
-        *args: Any,
+        cls: ContainerComponentType,
+        win_id: Optional[str] = None,
         **kwargs: Any,
-    ) -> None:
-        if win_id in self._subwindows:
+    ) -> str:
+        """
+        サブウィンドウを開き、ウィンドウIDを返します。
+
+        Args:
+            win_id: 任意のウィンドウキー。未指定または重複時は自動生成します。
+            cls: ウィジェットクラス
+        Returns:
+            使用したウィンドウID
+        """
+        # 既存IDであれば前面に
+        if win_id and win_id in self._subwindows:
             self._subwindows[win_id][0].lift()
-            return
+            return win_id
+
+        # キー生成
+        base_id = win_id or cls.__name__
+        unique_id = base_id
+        suffix = 1
+        while unique_id in self._subwindows:
+            unique_id = f"{base_id}_{suffix}"
+            suffix += 1
+
+        # ウィンドウ生成
         toplevel = tk.Toplevel(self)
-        comp = cls(toplevel, *args, **kwargs)
+        comp = cls(parent=toplevel, store=self.state_cls, **kwargs)
         comp.pack(fill=tk.BOTH, expand=True)
-        self._subwindows[win_id] = (toplevel, comp)
+        self._subwindows[unique_id] = (toplevel, comp)
+        return unique_id
 
     def close_subwindow(self, win_id: str) -> None:
         if win_id not in self._subwindows:
@@ -111,12 +177,17 @@ class ApplicationCommon(PubSubBase):
 
 class TkApplication(ApplicationCommon, tk.Tk):
     def __init__(
-        self, title: str = "Tk App", geometry: str = "800x600", *args, **kwargs
+        self,
+        state_cls: Type[TState],
+        title: str = "Tk App",
+        geometry: str = "800x600",
+        *args,
+        **kwargs,
     ):
         # **first** initialize the actual Tk
         tk.Tk.__init__(self, *args, **kwargs)
         # **then** initialize the PubSub mixin
-        ApplicationCommon.__init__(self)
+        ApplicationCommon.__init__(self, state_cls)
         # now do your common window setup
         self.init_common(title, geometry)
 
@@ -124,6 +195,7 @@ class TkApplication(ApplicationCommon, tk.Tk):
 class ThemedApplication(ApplicationCommon, ThemedTk):
     def __init__(
         self,
+        state_cls: Type[TState],
         theme: str = "arc",
         title: str = "Themed App",
         geometry: str = "800x600",
@@ -133,6 +205,6 @@ class ThemedApplication(ApplicationCommon, ThemedTk):
         # initialize the themed‐Tk
         ThemedTk.__init__(self, *args, theme=theme, **kwargs)
         # mixin init
-        ApplicationCommon.__init__(self)
+        ApplicationCommon.__init__(self, state_cls)
         # then common setup
         self.init_common(title, geometry)
