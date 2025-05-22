@@ -61,24 +61,24 @@ python tests/sample_app/main.py
 
 ## ✨ コアコンセプトと機能概要
 
-### Pub/Sub × Pydantic × 3-層構造
+### pubsubtkのコア構造
 
 ```mermaid
 graph LR
-  Store[Store（& Pydantic State）]
-  PubSub[Pub/Sub]
+  Store[Store]
   Processor[Processor]
   Container[Container]
   View[Presentational View]
-  Store -->|publish/subscription| PubSub
-  Processor -->|subscribe/publish| PubSub
-  Container -->|subscribe to state| Store
-  Container -->|publish events| PubSub
-  View -->|trigger_event| Container
-  Container -->|update UI| View
+  
+  Processor -- state変更発行 --> Store
+  Store -- state変更通知 --> Container
+  Container -- UI更新 --> View
+  View -- trigger_event --> Container
+  Container -- action/イベント --> Processor
+
 ```
 
-### PubSubDefaultTopicBase 提供メソッド
+### 使える便利メソッド
 
 | メソッド                            | 説明                       | 主に利用する層               |
 | ------------------------------- | ------------------------ | --------------------- |
