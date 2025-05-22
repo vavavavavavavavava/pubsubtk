@@ -1,6 +1,6 @@
 from app_state import AppState
 from processors import TaskProcessor
-from ui.containers import TaskListContainer
+from ui.containers.task_list_container import TaskListContainer
 
 from pubsubtk import (
     TkApplication,

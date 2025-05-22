@@ -10,3 +10,4 @@ class TaskTopic(AutoNamedTopic):
     TOGGLE_TASK = auto()
     SELECT_TASK = auto()
     DELETE_TASK = auto()
+    UPDATE_TASK_TITLE = auto()
