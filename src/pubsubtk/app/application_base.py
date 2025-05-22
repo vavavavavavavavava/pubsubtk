@@ -1,6 +1,6 @@
 import asyncio
 import tkinter as tk
-from typing import Any, Dict, Generic, Optional, Tuple, Type, TypeVar
+from typing import Dict, Generic, Optional, Tuple, Type, TypeVar
 
 from pydantic import BaseModel
 from ttkthemes import ThemedTk
@@ -96,10 +96,18 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
     def switch_container(
         self,
         cls: ContainerComponentType,
-        **kwargs: Any,
+        kwargs: dict = None,
     ) -> None:
+        """
+        メインフレーム内のコンテナを切り替えます。
+
+        Args:
+            cls: コンテナクラス
+            kwargs: コンテナ初期化用パラメータ辞書
+        """
         if self.active:
             self.active.destroy()
+        kwargs = kwargs or {}
         self.active = cls(parent=self.main_frame, store=self.store, **kwargs)
         self.active.pack(fill=tk.BOTH, expand=True)
 
@@ -107,7 +115,7 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
         self,
         cls: ContainerComponentType,
         win_id: Optional[str] = None,
-        **kwargs: Any,
+        kwargs: dict = None,
     ) -> str:
         """
         サブウィンドウを開き、ウィンドウIDを返します。
@@ -115,6 +123,7 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
         Args:
             win_id: 任意のウィンドウキー。未指定または重複時は自動生成します。
             cls: ウィジェットクラス
+            kwargs: コンテナ初期化用パラメータ辞書
         Returns:
             使用したウィンドウID
         """
@@ -133,7 +142,8 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
 
         # ウィンドウ生成
         toplevel = tk.Toplevel(self)
-        comp = cls(parent=toplevel, store=self.state_cls, **kwargs)
+        kwargs = kwargs or {}
+        comp = cls(parent=toplevel, store=self.store, **kwargs)
         comp.pack(fill=tk.BOTH, expand=True)
         self._subwindows[unique_id] = (toplevel, comp)
         return unique_id

@@ -19,25 +19,25 @@ class PubSubDefaultTopicBase(PubSubBase):
     def pub_switch_container(
         self,
         cls: ContainerComponentType,
-        **kwargs: Any,
+        kwargs: dict = None,
     ) -> None:
         """コンテナを切り替えるPubSubメッセージを送信する。
 
         Args:
             cls (ContainerComponentType): 切り替え先のコンテナコンポーネントクラス
-            **kwargs (Any): コンテナに渡すキーワード引数
+            kwargs: コンテナに渡すキーワード引数用辞書
 
         Note:
             コンテナは、TkApplicationまたはTtkApplicationのコンストラクタで指定された
             親ウィジェットの子として配置されます。
         """
-        self.publish(DefaultNavigateTopic.SWITCH_CONTAINER, cls=cls, **kwargs)
+        self.publish(DefaultNavigateTopic.SWITCH_CONTAINER, cls=cls, kwargs=kwargs)
 
     def pub_open_subwindow(
         self,
         cls: ContainerComponentType,
         win_id: Optional[str] = None,
-        **kwargs: Any,
+        kwargs: dict = None,
     ) -> None:
         """サブウィンドウを開くPubSubメッセージを送信する。
 
@@ -46,13 +46,13 @@ class PubSubDefaultTopicBase(PubSubBase):
             win_id (Optional[str], optional): サブウィンドウのID。
                 指定しない場合は自動生成される。
                 同じIDを指定すると、既存のウィンドウが再利用される。
-            **kwargs (Any): コンテナに渡すキーワード引数
+            kwargs: コンテナに渡すキーワード引数用辞書
 
         Note:
             サブウィンドウは、Toplevel ウィジェットとして作成されます。
         """
         self.publish(
-            DefaultNavigateTopic.OPEN_SUBWINDOW, cls=cls, win_id=win_id, **kwargs
+            DefaultNavigateTopic.OPEN_SUBWINDOW, cls=cls, win_id=win_id, kwargs=kwargs
         )
 
     def pub_close_subwindow(self, win_id: str) -> None:
