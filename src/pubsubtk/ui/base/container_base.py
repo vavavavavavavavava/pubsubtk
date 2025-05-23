@@ -27,6 +27,9 @@ class ContainerMixin(PubSubDefaultTopicBase, ABC, Generic[TState]):
         Args:
             state_cls: Pydanticモデルの型（例: AppState）
         """
+        self.args = args
+        self.kwargs = kwargs
+
         # 型引数付きの Store[TState] を取得
         self.store: Store[TState] = store
 
@@ -65,7 +68,7 @@ class ContainerComponentTk(ContainerMixin[TState], tk.Frame, Generic[TState]):
     """
 
     def __init__(self, parent: tk.Widget, store: Store[TState], *args, **kwargs: Any):
-        tk.Frame.__init__(self, master=parent, *args, **kwargs)
+        tk.Frame.__init__(self, master=parent)
         ContainerMixin.__init__(self, store=store, *args, **kwargs)
 
 
@@ -75,7 +78,7 @@ class ContainerComponentTtk(ContainerMixin[TState], ttk.Frame, Generic[TState]):
     """
 
     def __init__(self, parent: tk.Widget, store: Store[TState], *args, **kwargs: Any):
-        tk.Frame.__init__(self, master=parent, *args, **kwargs)
+        ttk.Frame.__init__(self, master=parent)
         ContainerMixin.__init__(self, store=store, *args, **kwargs)
 
 

@@ -13,6 +13,9 @@ class PresentationalMixin(ABC):
     """
 
     def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
         self._handlers: Dict[str, Callable[..., Any]] = {}
         self.setup_ui()
 
@@ -47,7 +50,7 @@ class PresentationalComponentTk(PresentationalMixin, tk.Frame):
     """
 
     def __init__(self, parent: tk.Widget, *args, **kwargs):
-        tk.Frame.__init__(self, master=parent, *args, **kwargs)
+        tk.Frame.__init__(self, master=parent)
         PresentationalMixin.__init__(self, *args, **kwargs)
 
 
@@ -58,5 +61,5 @@ class PresentationalComponentTtk(PresentationalMixin, ttk.Frame):
     """
 
     def __init__(self, parent: tk.Widget, *args, **kwargs):
-        tk.Frame.__init__(self, master=parent, *args, **kwargs)
+        ttk.Frame.__init__(self, master=parent)
         PresentationalMixin.__init__(self, *args, **kwargs)

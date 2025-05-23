@@ -140,15 +140,5 @@ class TaskListContainer(ContainerComponentTk[AppState]):
             win_id=f"task_detail_{task_id}",
             kwargs={
                 "task_id": task_id,
-                "on_save": self._on_save_task_detail,
             },
         )
-
-    def _on_save_task_detail(self, task_id, new_title):
-        """
-        タスク詳細サブウィンドウで保存されたときの処理。
-        """
-        # ここでタスク名更新のトピックを発行
-        self.publish(TaskTopic.UPDATE_TASK_TITLE, task_id=task_id, title=new_title)
-        # サブウィンドウを閉じる
-        self.pub_close_subwindow(f"task_detail_{task_id}")

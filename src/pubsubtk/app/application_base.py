@@ -9,7 +9,7 @@ from pubsubtk.core.pubsub_base import PubSubBase
 from pubsubtk.processor.processor_base import ProcessorBase
 from pubsubtk.store.store import get_store
 from pubsubtk.topic.topics import DefaultNavigateTopic, DefaultProcessorTopic
-from pubsubtk.ui.base.container_base import ContainerComponentType
+from pubsubtk.ui.base.container_base import ContainerComponentType, ContainerMixin
 
 TState = TypeVar("TState", bound=BaseModel)
 P = TypeVar("P", bound=ProcessorBase)
@@ -143,8 +143,22 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
         # ウィンドウ生成
         toplevel = tk.Toplevel(self)
         kwargs = kwargs or {}
-        comp = cls(parent=toplevel, store=self.store, **kwargs)
+        kwargs["win_id"] = unique_id
+
+        # PresentationalComponentならstore不要
+        is_container = issubclass(cls, ContainerMixin)
+        if is_container:
+            comp = cls(parent=toplevel, store=self.store, **kwargs)
+        else:
+            comp = cls(parent=toplevel, **kwargs)
+
         comp.pack(fill=tk.BOTH, expand=True)
+
+        def on_close():
+            self.close_subwindow(unique_id)
+
+        toplevel.protocol("WM_DELETE_WINDOW", on_close)
+
         self._subwindows[unique_id] = (toplevel, comp)
         return unique_id
 
@@ -213,7 +227,7 @@ class ThemedApplication(ApplicationCommon, ThemedTk):
         **kwargs,
     ):
         # initialize the themed‐Tk
-        ThemedTk.__init__(self, *args, theme=theme, **kwargs)
+        ThemedTk.__init__(self, theme=theme, *args, **kwargs)
         # mixin init
         ApplicationCommon.__init__(self, state_cls)
         # then common setup
