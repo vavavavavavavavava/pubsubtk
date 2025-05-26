@@ -1,4 +1,5 @@
 from .app import ThemedApplication, TkApplication
+from .core import enable_pubsub_debug_logging, disable_pubsub_debug_logging
 from .processor import ProcessorBase
 from .store import Store, get_store
 from .topic import AutoNamedTopic
@@ -25,4 +26,7 @@ __all__ = [
     "PresentationalComponentTtk",
     "ContainerComponentTk",
     "ContainerComponentTtk",
+    # debug
+    "enable_pubsub_debug_logging",
+    "disable_pubsub_debug_logging",
 ]
