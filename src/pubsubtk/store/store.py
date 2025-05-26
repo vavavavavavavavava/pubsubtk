@@ -1,4 +1,3 @@
-from threading import Lock
 from typing import Any, Generic, Optional, Type, TypeVar, cast
 
 from pubsub import pub
@@ -46,7 +45,7 @@ class Store(PubSubBase, Generic[TState]):
     """
     型安全な状態管理を提供するジェネリックなStoreクラス。
 
-    - Pydanticモデルを状態として保持し、スレッドセーフに操作
+    - Pydanticモデルを状態として保持し、状態操作を提供
     - get_current_state()で状態のディープコピーを取得
     - update_state()/add_to_list()で状態を更新し、PubSubで通知
     - create_partial_state_updater()で部分更新用関数を生成
@@ -64,10 +63,9 @@ class Store(PubSubBase, Generic[TState]):
         """
         self._state_class = initial_state_class
         self._state = initial_state_class()
-        self._lock = Lock()
-        self._version: int = 0
-        self._cached_state: Optional[TState] = None
-        self._cached_version: int = -1
+        
+        # PubSubBase.__init__()を呼び出して購読設定を有効化
+        super().__init__()
 
     def setup_subscriptions(self):
         self.subscribe(DefaultUpdateTopic.UPDATE_STATE, self.update_state)
@@ -82,28 +80,22 @@ class Store(PubSubBase, Generic[TState]):
 
     def get_current_state(self) -> TState:
         """
-        現在の状態のディープコピーを返す。キャッシュを利用。
+        現在の状態のディープコピーを返す。
         """
-
-        if self._cached_state is None or self._cached_version != self._version:
-            self._cached_state = self._state.model_copy(deep=True)
-            self._cached_version = self._version
-        return self._cached_state
+        return self._state.model_copy(deep=True)
 
     def update_state(self, state_path: str, new_value: Any) -> None:
         """
         指定パスの属性を新しい値で更新し、PubSubで変更通知を送信する。
 
         Args:
-            path: 属性パス（例: "foo.bar"）
+            state_path: 属性パス（例: "foo.bar"）
             new_value: 新しい値
         """
-
         target_obj, attr_name, old_value = self._resolve_path(str(state_path))
 
         # 新しい値を設定する前に型チェック
         self._validate_and_set_value(target_obj, attr_name, new_value)
-        self._version += 1
 
         self.publish(
             f"{DefaultUpdateTopic.STATE_CHANGED}.{state_path}",
@@ -116,10 +108,9 @@ class Store(PubSubBase, Generic[TState]):
         指定パスのリスト属性に要素を追加し、PubSubで追加通知を送信する。
 
         Args:
-            path: 属性パス
+            state_path: 属性パス
             item: 追加する要素
         """
-
         target_obj, attr_name, current_list = self._resolve_path(str(state_path))
 
         if not isinstance(current_list, list):
@@ -131,7 +122,7 @@ class Store(PubSubBase, Generic[TState]):
 
         # 新しいリストで更新
         self._validate_and_set_value(target_obj, attr_name, new_list)
-        self._version += 1
+        
         index = len(new_list) - 1
 
         pub.sendMessage(
@@ -234,15 +225,3 @@ def get_store(state_cls: Type[TState]) -> Store[TState]:
                 f"Store は既に {existing!r} で生成されています（呼び出し時の state_cls={state_cls!r}）"
             )
     return cast(Store[TState], _store)
-
-
-if __name__ == "__main__":
-    from pydantic import BaseModel
-
-    class AppState(BaseModel):
-        count: int = 0
-
-    store = get_store(AppState)
-    store.state.count
-    store = get_store(AppState)
-    store.state
