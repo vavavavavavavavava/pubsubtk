@@ -1,4 +1,9 @@
 from .default_topic_base import PubSubDefaultTopicBase
-from .pubsub_base import PubSubBase
+from .pubsub_base import PubSubBase, enable_pubsub_debug_logging, disable_pubsub_debug_logging
 
-__all__ = ["PubSubBase", "PubSubDefaultTopicBase"]
+__all__ = [
+    "PubSubBase", 
+    "PubSubDefaultTopicBase",
+    "enable_pubsub_debug_logging",
+    "disable_pubsub_debug_logging"
+]
