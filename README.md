@@ -98,6 +98,24 @@ graph LR
 
 ---
 
+## 📖 リファレンス
+
+- [フルリファレンス（REFERENCE_FULL.md）](docs/REFERENCE_FULL.md)  
+  全コードとその詳細解説（全ソースコード＋設計・補足コメントまで含む完全版）
+
+- [ミディアムリファレンス（REFERENCE_MEDIUM.md）](docs/REFERENCE_MEDIUM.md)  
+  各メソッド・関数の「型」や「docstring」のみ抜粋（実装本体なし）。APIや構造の雰囲気をざっと把握したい場合向け
+
+- [ショートリファレンス（REFERENCE_SHORT.md）](docs/REFERENCE_SHORT.md)  
+  クイックスタート、利用ルール、よく使うメソッド一覧等を1ページに凝縮した最速チートシート
+
+---
+
+**生成AI（ChatGPTなど）にPubSubTkのコード生成や設計支援を依頼する際は、ぜひこれらのリファレンスを一緒に提示してください。**  
+API設計や利用ルールをAIに伝えることで、より正確で実用的なコードやアドバイスを引き出しやすくなります！
+
+---
+
 ## 🙌 貢献 & フィードバック
 
 * Issue / PR は GitHub で歓迎しています。
