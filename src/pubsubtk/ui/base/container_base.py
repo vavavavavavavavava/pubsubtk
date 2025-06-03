@@ -1,5 +1,3 @@
-# container.py
-
 import tkinter as tk
 from abc import ABC, abstractmethod
 from tkinter import ttk
@@ -20,6 +18,9 @@ class ContainerMixin(PubSubDefaultTopicBase, ABC, Generic[TState]):
     - Storeインスタンスを取得し、購読設定・状態反映を自動実行
     - setup_subscriptions()/refresh_from_state()をサブクラスで実装
     - destroy時に購読解除(teardown)も自動
+    
+    **IMPORTANT**: Use built-in pub_* methods for state updates instead of 
+    manually publishing to topics. This provides better IDE support and consistency.
     """
 
     def __init__(self, store: Store[TState], *args, **kwargs: Any):
@@ -82,4 +83,13 @@ class ContainerComponentTtk(ContainerMixin[TState], ttk.Frame, Generic[TState]):
         ContainerMixin.__init__(self, store=store, *args, **kwargs)
 
 
+# Import presentational types for ComponentType
+from pubsubtk.ui.base.presentaional_base import (
+    PresentationalComponentTk,
+    PresentationalComponentTtk,
+)
+
+# Type definitions
 ContainerComponentType = Type[ContainerComponentTk] | Type[ContainerComponentTtk]
+PresentationalComponentType = Type[PresentationalComponentTk] | Type[PresentationalComponentTtk]
+ComponentType = ContainerComponentType | PresentationalComponentType

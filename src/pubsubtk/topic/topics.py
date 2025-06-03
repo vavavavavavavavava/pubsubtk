@@ -29,6 +29,7 @@ class DefaultNavigateTopic(AutoNamedTopic):
     """
 
     SWITCH_CONTAINER = auto()
+    SWITCH_SLOT = auto()
     OPEN_SUBWINDOW = auto()
     CLOSE_SUBWINDOW = auto()
     CLOSE_ALL_SUBWINDOWS = auto()

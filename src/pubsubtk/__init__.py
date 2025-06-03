@@ -8,6 +8,8 @@ from .ui import (
     ContainerComponentTtk,
     PresentationalComponentTk,
     PresentationalComponentTtk,
+    TemplateComponentTk,
+    TemplateComponentTtk,
 )
 
 __all__ = [
@@ -26,6 +28,8 @@ __all__ = [
     "PresentationalComponentTtk",
     "ContainerComponentTk",
     "ContainerComponentTtk",
+    "TemplateComponentTk",
+    "TemplateComponentTtk",
     # debug
     "enable_pubsub_debug_logging",
     "disable_pubsub_debug_logging",

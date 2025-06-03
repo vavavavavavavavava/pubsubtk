@@ -12,10 +12,18 @@ from pubsubtk.topic.topics import (
 if TYPE_CHECKING:
     # 型チェック時（mypy や IDE 補完時）のみ読み込む
     from pubsubtk.processor.processor_base import ProcessorBase
-    from pubsubtk.ui.base.container_base import ContainerComponentType
+    from pubsubtk.ui.base.container_base import ContainerComponentType, ComponentType
 
 
 class PubSubDefaultTopicBase(PubSubBase):
+    """
+    Built-in convenience methods for common PubSub operations.
+    
+    **IMPORTANT**: Container and Processor components should use these built-in methods
+    instead of manually publishing to DefaultTopics. These methods are designed for
+    ease of use and provide better IDE support.
+    """
+    
     def pub_switch_container(
         self,
         cls: ContainerComponentType,
@@ -33,20 +41,44 @@ class PubSubDefaultTopicBase(PubSubBase):
         """
         self.publish(DefaultNavigateTopic.SWITCH_CONTAINER, cls=cls, kwargs=kwargs)
 
+    def pub_switch_slot(
+        self,
+        slot_name: str,
+        cls: ComponentType,
+        kwargs: dict = None,
+    ) -> None:
+        """テンプレートの特定スロットのコンテンツを切り替える。
+
+        Args:
+            slot_name (str): スロット名
+            cls (ComponentType): コンテナまたはプレゼンテーショナルコンポーネントクラス
+            kwargs: コンポーネントに渡すキーワード引数用辞書
+
+        Note:
+            ContainerComponentとPresentationalComponentの両方に対応。
+            テンプレートが設定されていない場合はエラーになります。
+        """
+        self.publish(
+            DefaultNavigateTopic.SWITCH_SLOT,
+            slot_name=slot_name,
+            cls=cls,
+            kwargs=kwargs
+        )
+
     def pub_open_subwindow(
         self,
-        cls: ContainerComponentType,
+        cls: ComponentType,
         win_id: Optional[str] = None,
         kwargs: dict = None,
     ) -> None:
         """サブウィンドウを開くPubSubメッセージを送信する。
 
         Args:
-            cls (ContainerComponentType): サブウィンドウに表示するコンテナコンポーネントクラス
+            cls (ComponentType): サブウィンドウに表示するコンポーネントクラス
             win_id (Optional[str], optional): サブウィンドウのID。
                 指定しない場合は自動生成される。
                 同じIDを指定すると、既存のウィンドウが再利用される。
-            kwargs: コンテナに渡すキーワード引数用辞書
+            kwargs: コンポーネントに渡すキーワード引数用辞書
 
         Note:
             サブウィンドウは、Toplevel ウィジェットとして作成されます。
@@ -68,15 +100,17 @@ class PubSubDefaultTopicBase(PubSubBase):
         self.publish(DefaultNavigateTopic.CLOSE_ALL_SUBWINDOWS)
 
     def pub_update_state(self, state_path: str, new_value: Any) -> None:
-        """Storeの状態を更新するPubSubメッセージを送信する。
+        """
+        Storeの状態を更新するPubSubメッセージを送信する。
 
         Args:
             state_path (str): 更新する状態のパス（例: "user.name", "items[2].value"）
             new_value (Any): 新しい値
 
         Note:
-            状態パスは、Store.state プロキシを使用して取得することを推奨します。
-            例: `store.update_state(store.state.user.name, "新しい名前")`
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_update_state(str(self.store.state.user.name), "新しい名前")`
+            The state proxy provides autocomplete and "Go to Definition" functionality.
         """
         self.publish(
             DefaultUpdateTopic.UPDATE_STATE,
@@ -85,15 +119,17 @@ class PubSubDefaultTopicBase(PubSubBase):
         )
 
     def pub_add_to_list(self, state_path: str, item: Any) -> None:
-        """Storeの状態（リスト）に要素を追加するPubSubメッセージを送信する。
+        """
+        Storeの状態（リスト）に要素を追加するPubSubメッセージを送信する。
 
         Args:
             state_path (str): 要素を追加するリストの状態パス（例: "items", "user.tasks"）
             item (Any): 追加する要素
 
         Note:
-            状態パスは、Store.state プロキシを使用して取得することを推奨します。
-            例: `store.add_to_list(store.state.items, new_item)`
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_add_to_list(str(self.store.state.items), new_item)`
+            The state proxy provides autocomplete and "Go to Definition" functionality.
         """
         self.publish(
             DefaultUpdateTopic.ADD_TO_LIST, state_path=str(state_path), item=item
@@ -127,7 +163,8 @@ class PubSubDefaultTopicBase(PubSubBase):
     def sub_state_changed(
         self, state_path: str, handler: Callable[[Any, Any], None]
     ) -> None:
-        """状態が変更されたときの通知を購読する。
+        """
+        状態が変更されたときの通知を購読する。
 
         ハンドラー関数には、old_valueとnew_valueが渡されます。
 
@@ -135,13 +172,18 @@ class PubSubDefaultTopicBase(PubSubBase):
             state_path (str): 監視する状態のパス（例: "user.name", "items[2].value"）
             handler (Callable[[Any, Any], None]): 変更時に呼び出される関数。
                 old_valueとnew_valueの2引数を取る
+        
+        Note:
+            **RECOMMENDED**: Use store.state proxy for consistent path specification:
+            `self.sub_state_changed(str(self.store.state.user.name), self.on_name_changed)`
         """
         self.subscribe(f"{DefaultUpdateTopic.STATE_CHANGED}.{str(state_path)}", handler)
 
     def sub_state_added(
         self, state_path: str, handler: Callable[[Any, int], None]
     ) -> None:
-        """リストに要素が追加されたときの通知を購読する。
+        """
+        リストに要素が追加されたときの通知を購読する。
 
         ハンドラー関数には、itemとindexが渡されます。
 
@@ -149,5 +191,9 @@ class PubSubDefaultTopicBase(PubSubBase):
             state_path (str): 監視するリスト状態のパス（例: "items", "user.tasks"）
             handler (Callable[[Any, int], None]): 要素追加時に呼び出される関数。
                 追加されたアイテムとそのインデックスを引数に取る
+        
+        Note:
+            **RECOMMENDED**: Use store.state proxy for consistent path specification:
+            `self.sub_state_added(str(self.store.state.items), self.on_item_added)`
         """
         self.subscribe(f"{DefaultUpdateTopic.STATE_ADDED}.{str(state_path)}", handler)

@@ -9,7 +9,12 @@ from pubsubtk.core.pubsub_base import PubSubBase
 from pubsubtk.processor.processor_base import ProcessorBase
 from pubsubtk.store.store import get_store
 from pubsubtk.topic.topics import DefaultNavigateTopic, DefaultProcessorTopic
-from pubsubtk.ui.base.container_base import ContainerComponentType, ContainerMixin
+from pubsubtk.ui.base.container_base import (
+    ContainerComponentType,
+    ContainerMixin,
+    ComponentType,
+)
+from pubsubtk.ui.base.template_base import TemplateComponentType, TemplateMixin
 
 TState = TypeVar("TState", bound=BaseModel)
 P = TypeVar("P", bound=ProcessorBase)
@@ -49,6 +54,7 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
     def setup_subscriptions(self) -> None:
         # PubSubBase.__init__ 内から自動呼び出しされる
         self.subscribe(DefaultNavigateTopic.SWITCH_CONTAINER, self.switch_container)
+        self.subscribe(DefaultNavigateTopic.SWITCH_SLOT, self.switch_slot)
         self.subscribe(DefaultNavigateTopic.OPEN_SUBWINDOW, self.open_subwindow)
         self.subscribe(DefaultNavigateTopic.CLOSE_SUBWINDOW, self.close_subwindow)
         self.subscribe(
@@ -58,6 +64,25 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
             DefaultProcessorTopic.REGISTOR_PROCESSOR, self.register_processor
         )
         self.subscribe(DefaultProcessorTopic.DELETE_PROCESSOR, self.delete_processor)
+
+    def _create_component(self,
+                         cls: ComponentType,
+                         parent: tk.Widget,
+                         kwargs: dict = None) -> tk.Widget:
+        """
+        コンポーネントの種類に応じて適切にインスタンス化する共通メソッド
+        """
+        kwargs = kwargs or {}
+
+        # ContainerMixinを継承しているかチェック
+        is_container = issubclass(cls, ContainerMixin)
+
+        if is_container:
+            # Containerの場合はstoreを渡す
+            return cls(parent=parent, store=self.store, **kwargs)
+        else:
+            # Presentationalの場合はstoreなし
+            return cls(parent=parent, **kwargs)
 
     def register_processor(self, proc: Type[P], name: Optional[str] = None) -> str:
         """
@@ -93,6 +118,18 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
         self._processors[name].teardown()
         del self._processors[name]
 
+    def set_template(self, template_cls: TemplateComponentType) -> None:
+        """
+        アプリケーションにテンプレートを設定する。
+        
+        Args:
+            template_cls: TemplateComponentを継承したクラス
+        """
+        if self.active:
+            self.active.destroy()
+        self.active = template_cls(parent=self.main_frame, store=self.store)
+        self.active.pack(fill=tk.BOTH, expand=True)
+
     def switch_container(
         self,
         cls: ContainerComponentType,
@@ -100,20 +137,57 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
     ) -> None:
         """
         メインフレーム内のコンテナを切り替えます。
+        テンプレートが設定されている場合は、デフォルトスロットに切り替えます。
 
         Args:
             cls: コンテナクラス
             kwargs: コンテナ初期化用パラメータ辞書
         """
-        if self.active:
-            self.active.destroy()
-        kwargs = kwargs or {}
-        self.active = cls(parent=self.main_frame, store=self.store, **kwargs)
-        self.active.pack(fill=tk.BOTH, expand=True)
+        # テンプレートが設定されている場合
+        if self.active and isinstance(self.active, TemplateMixin):
+            # デフォルトスロット（"main" または "content"）を探す
+            slots = self.active.get_slots()
+            if "main" in slots:
+                self.active.switch_slot_content("main", cls, kwargs)
+            elif "content" in slots:
+                self.active.switch_slot_content("content", cls, kwargs)
+            else:
+                # デフォルトスロットがない場合は最初のスロットを使用
+                if slots:
+                    first_slot = list(slots.keys())[0]
+                    self.active.switch_slot_content(first_slot, cls, kwargs)
+                else:
+                    raise RuntimeError("Template has no slots defined")
+        else:
+            # 通常のコンテナ切り替え
+            if self.active:
+                self.active.destroy()
+            kwargs = kwargs or {}
+            self.active = self._create_component(cls, self.main_frame, kwargs)
+            self.active.pack(fill=tk.BOTH, expand=True)
+
+    def switch_slot(
+        self,
+        slot_name: str,
+        cls: ComponentType,
+        kwargs: dict = None,
+    ) -> None:
+        """
+        テンプレートの特定スロットのコンテンツを切り替える。
+        
+        Args:
+            slot_name: スロット名
+            cls: コンポーネントクラス
+            kwargs: コンポーネント初期化用パラメータ辞書
+        """
+        if not self.active or not isinstance(self.active, TemplateMixin):
+            raise RuntimeError("No template is set. Use set_template() first.")
+        
+        self.active.switch_slot_content(slot_name, cls, kwargs)
 
     def open_subwindow(
         self,
-        cls: ContainerComponentType,
+        cls: ComponentType,
         win_id: Optional[str] = None,
         kwargs: dict = None,
     ) -> str:
@@ -122,8 +196,8 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
 
         Args:
             win_id: 任意のウィンドウキー。未指定または重複時は自動生成します。
-            cls: ウィジェットクラス
-            kwargs: コンテナ初期化用パラメータ辞書
+            cls: コンポーネントクラス
+            kwargs: コンポーネント初期化用パラメータ辞書
         Returns:
             使用したウィンドウID
         """
@@ -145,13 +219,8 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
         kwargs = kwargs or {}
         kwargs["win_id"] = unique_id
 
-        # PresentationalComponentならstore不要
-        is_container = issubclass(cls, ContainerMixin)
-        if is_container:
-            comp = cls(parent=toplevel, store=self.store, **kwargs)
-        else:
-            comp = cls(parent=toplevel, **kwargs)
-
+        # 共通メソッドを使用
+        comp = self._create_component(cls, toplevel, kwargs)
         comp.pack(fill=tk.BOTH, expand=True)
 
         def on_close():
