@@ -1,30 +1,92 @@
-# PubSubTk Library - AI Reference Guide
+# PubSubTk ライブラリ - AI リファレンスガイド
 
-## Overview
-PubSubTk is a Python library that provides a clean, type-safe way to build Tkinter/ttk GUI applications using the Publish-Subscribe pattern with Pydantic state management. It simplifies GUI development by separating concerns and enabling reactive UI updates.
+## 目次
 
-## Core Concepts
+* [概要](#概要)
+* [コアコンセプト](#コアコンセプト)
 
-### 1. State Management with Store
-- **Type-safe state** using Pydantic models
-- **Centralized state** with automatic change notifications
-- **Path-based updates** with IDE support via proxy objects
+  * [1. State管理](#1-state管理)
+  * [2. PubSub通信](#2-pubsub通信)
+  * [3. コンポーネントアーキテクチャ](#3-コンポーネントアーキテクチャ)
+* [フルソースコード](#フルソースコード)
 
-### 2. PubSub Communication
-- **Decoupled components** communicating via topics
-- **Built-in default topics** for common operations
-- **Custom topics** using AutoNamedTopic enum
+  * [コアPubSubシステム](#コアpubsubシステム)
 
-### 3. Component Architecture
-- **Container Components**: Stateful components with Store access
-- **Presentational Components**: Pure display components
-- **Processors**: Business logic handlers
+    * [`src/pubsubtk/core/pubsub_base.py`](#srcpubsubtkcorepubsub_basepy)
+    * [`src/pubsubtk/core/default_topic_base.py`](#srcpubsubtkcoredefault_topic_basepy)
+  * [トピックシステム](#トピックシステム)
 
-## Full Source Code
+    * [`src/pubsubtk/topic/topics.py`](#srcpubsubtktopictopicspy)
+  * [State管理](#state管理)
 
-### Core PubSub System
+    * [`src/pubsubtk/store/store.py`](#srcpubsubtkstorestorepy)
+  * [アプリケーションクラス](#アプリケーションクラス)
+
+    * [`src/pubsubtk/app/application_base.py`](#srcpubsubtkappapplication_basepy)
+  * [UIコンポーネント](#uiコンポーネント)
+
+    * [`src/pubsubtk/ui/base/container_base.py`](#srcpubsubtkuibasecontainer_basepy)
+    * [`src/pubsubtk/ui/base/presentational_base.py`](#srcpubsubtkuibasepresentational_basepy)
+  * [Processorシステム](#processorシステム)
+
+    * [`src/pubsubtk/processor/processor_base.py`](#srcpubsubtkprocessorprocessor_basepy)
+* [組み込みメソッドの使用（推奨）](#組み込みメソッドの使用推奨)
+* [Stateパスの使用（推奨）](#stateパスの使用推奨)
+* [コンポーネントライフサイクル](#コンポーネントライフサイクル)
+* [共通インポートパターン](#共通インポートパターン)
+* [ナビゲーションパターン](#ナビゲーションパターン)
+* [テンプレート使用パターン](#テンプレート使用パターン)
+* [エラー処理](#エラー処理)
+* [コンポーネントタイプの柔軟性](#コンポーネントタイプの柔軟性)
+* [Key Design Patterns](#key-design-patterns)
+
+  * [1. State-Firstアーキテクチャ](#1-state-firstアーキテクチャ)
+  * [2. アプリケーションセットアップパターン](#2-アプリケーションセットアップパターン)
+  * [3. テンプレートコンポーネントパターン](#3-テンプレートコンポーネントパターン)
+  * [4. Containerコンポーネントパターン](#4-containerコンポーネントパターン)
+  * [5. Processorパターン](#5-processorパターン)
+* [依存関係](#依存関係)
+* [StateプロキシによるIDEサポート](#stateプロキシによるideサポート)
+
+---
+
+## 概要
+
+PubSubTk は、Pydantic を用いた型安全な状態管理と、Publish-Subscribe パターンを組み合わせて、Tkinter/ttk を使った GUI アプリケーションをシンプルに構築できる Python ライブラリです。状態管理やコンポーネント間通信を一元化し、UI のリアクティブな更新を容易に実現します。本ガイドでは、PubSubTk の基本コンセプトから全ソースコードまでを日本語で解説します。
+
+---
+
+## コアコンセプト
+
+### 1. State管理
+
+* **型安全な状態** を Pydantic モデルで定義し、Store クラスによって一元管理します。
+* **中央集権的な状態保持** が行われ、状態変更時には自動的に通知が飛びます。
+* **パスベースの更新** が可能で、IDE の補完と型チェックを利活用できます。
+
+### 2. PubSub通信
+
+* コンポーネント同士の通信を **トピック（topic）** を介して行い、疎結合を実現します。
+* **デフォルトトピック** が組み込まれており、よく使う操作を簡潔に扱えます。
+* 必要に応じて **カスタムトピック** を定義し、自由に Publish/Subscribe が可能です。
+
+### 3. コンポーネントアーキテクチャ
+
+* **Container Components**: 状態（Store）にアクセスし、PubSub を通じて状態変更を行うステートフルなコンポーネント。
+* **Presentational Components**: 外部データを受けて画面表示を行うピュアなコンポーネント。状態管理の責務を持ちません。
+* **Template Components**: レイアウトのスロット（header, main, status など）を定義し、そのスロットへコンポーネントを差し替えて UI を組み立てる仕組み。
+* **Processors**: ビジネスロジックを担うハンドラ。状態の参照や更新も行いますが、UI 描画は行いません。
+
+---
+
+## フルソースコード
+
+以下に PubSubTk の主要モジュールをすべて示します。旧版と新版で共通するコードは、新版の内容を採用しています。新版にしか存在しないモジュールや機能はすべて追加しています。
+
+### コアPubSubシステム
 
 #### `src/pubsubtk/core/pubsub_base.py`
+
 ```python
 import logging
 from abc import ABC, abstractmethod
@@ -149,6 +211,7 @@ def disable_pubsub_debug_logging() -> None:
 ```
 
 #### `src/pubsubtk/core/default_topic_base.py`
+
 ```python
 from __future__ import annotations
 
@@ -164,7 +227,7 @@ from pubsubtk.topic.topics import (
 if TYPE_CHECKING:
     # 型チェック時（mypy や IDE 補完時）のみ読み込む
     from pubsubtk.processor.processor_base import ProcessorBase
-    from pubsubtk.ui.base.container_base import ContainerComponentType
+    from pubsubtk.ui.types import ComponentType, ContainerComponentType, TemplateComponentType
 
 
 class PubSubDefaultTopicBase(PubSubBase):
@@ -173,7 +236,7 @@ class PubSubDefaultTopicBase(PubSubBase):
     
     **IMPORTANT**: Container and Processor components should use these built-in methods
     instead of manually publishing to DefaultTopics. These methods are designed for
-    ease of use and provide better IDE support.
+    ease of use and provide better IDE support and consistency.
     """
     
     def pub_switch_container(
@@ -193,20 +256,44 @@ class PubSubDefaultTopicBase(PubSubBase):
         """
         self.publish(DefaultNavigateTopic.SWITCH_CONTAINER, cls=cls, kwargs=kwargs)
 
+    def pub_switch_slot(
+        self,
+        slot_name: str,
+        cls: ComponentType,
+        kwargs: dict = None,
+    ) -> None:
+        """テンプレートの特定スロットのコンテンツを切り替える。
+
+        Args:
+            slot_name (str): スロット名
+            cls (ComponentType): コンテナまたはプレゼンテーショナルコンポーネントクラス
+            kwargs: コンポーネントに渡すキーワード引数用辞書
+
+        Note:
+            ContainerComponentとPresentationalComponentの両方に対応。
+            テンプレートが設定されていない場合はエラーになります。
+        """
+        self.publish(
+            DefaultNavigateTopic.SWITCH_SLOT,
+            slot_name=slot_name,
+            cls=cls,
+            kwargs=kwargs
+        )
+
     def pub_open_subwindow(
         self,
-        cls: ContainerComponentType,
+        cls: ComponentType,
         win_id: Optional[str] = None,
         kwargs: dict = None,
     ) -> None:
         """サブウィンドウを開くPubSubメッセージを送信する。
 
         Args:
-            cls (ContainerComponentType): サブウィンドウに表示するコンテナコンポーネントクラス
+            cls (ComponentType): サブウィンドウに表示するコンポーネントクラス
             win_id (Optional[str], optional): サブウィンドウのID。
                 指定しない場合は自動生成される。
                 同じIDを指定すると、既存のウィンドウが再利用される。
-            kwargs: コンテナに渡すキーワード引数用辞書
+            kwargs: コンポーネントに渡すキーワード引数用辞書
 
         Note:
             サブウィンドウは、Toplevel ウィジェットとして作成されます。
@@ -327,9 +414,10 @@ class PubSubDefaultTopicBase(PubSubBase):
         self.subscribe(f"{DefaultUpdateTopic.STATE_ADDED}.{str(state_path)}", handler)
 ```
 
-### Topics System
+### トピックシステム
 
 #### `src/pubsubtk/topic/topics.py`
+
 ```python
 from enum import StrEnum, auto
 
@@ -362,6 +450,7 @@ class DefaultNavigateTopic(AutoNamedTopic):
     """
 
     SWITCH_CONTAINER = auto()
+    SWITCH_SLOT = auto()
     OPEN_SUBWINDOW = auto()
     CLOSE_SUBWINDOW = auto()
     CLOSE_ALL_SUBWINDOWS = auto()
@@ -387,9 +476,10 @@ class DefaultProcessorTopic(AutoNamedTopic):
     DELETE_PROCESSOR = auto()
 ```
 
-### State Management
+### State管理
 
 #### `src/pubsubtk/store/store.py`
+
 ```python
 from typing import Any, Generic, Optional, Type, TypeVar, cast
 
@@ -625,9 +715,10 @@ def get_store(state_cls: Type[TState]) -> Store[TState]:
     return cast(Store[TState], _store)
 ```
 
-### Application Classes
+### アプリケーションクラス
 
 #### `src/pubsubtk/app/application_base.py`
+
 ```python
 import asyncio
 import tkinter as tk
@@ -636,11 +727,17 @@ from typing import Dict, Generic, Optional, Tuple, Type, TypeVar
 from pydantic import BaseModel
 from ttkthemes import ThemedTk
 
-from pubsubtk.core.pubsub_base import PubSubBase
+from pubsubtk.core.default_topic_base import PubSubDefaultTopicBase
 from pubsubtk.processor.processor_base import ProcessorBase
 from pubsubtk.store.store import get_store
 from pubsubtk.topic.topics import DefaultNavigateTopic, DefaultProcessorTopic
-from pubsubtk.ui.base.container_base import ContainerComponentType, ContainerMixin
+from pubsubtk.ui.base.container_base import ContainerMixin
+from pubsubtk.ui.base.template_base import TemplateMixin
+from pubsubtk.ui.types import (
+    ComponentType,
+    ContainerComponentType,
+    TemplateComponentType,
+)
 
 TState = TypeVar("TState", bound=BaseModel)
 P = TypeVar("P", bound=ProcessorBase)
@@ -655,7 +752,7 @@ def _default_poll(loop: asyncio.AbstractEventLoop, root: tk.Tk, interval: int) -
     root.after(interval, _default_poll, loop, root, interval)
 
 
-class ApplicationCommon(PubSubBase, Generic[TState]):
+class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
     """Tk/Ttk いずれのウィンドウクラスでも共通の機能を提供する Mixin"""
 
     def __init__(self, state_cls: Type[TState], *args, **kwargs):
@@ -680,6 +777,7 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
     def setup_subscriptions(self) -> None:
         # PubSubBase.__init__ 内から自動呼び出しされる
         self.subscribe(DefaultNavigateTopic.SWITCH_CONTAINER, self.switch_container)
+        self.subscribe(DefaultNavigateTopic.SWITCH_SLOT, self.switch_slot)
         self.subscribe(DefaultNavigateTopic.OPEN_SUBWINDOW, self.open_subwindow)
         self.subscribe(DefaultNavigateTopic.CLOSE_SUBWINDOW, self.close_subwindow)
         self.subscribe(
@@ -689,6 +787,25 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
             DefaultProcessorTopic.REGISTOR_PROCESSOR, self.register_processor
         )
         self.subscribe(DefaultProcessorTopic.DELETE_PROCESSOR, self.delete_processor)
+
+    def _create_component(self,
+                         cls: ComponentType,
+                         parent: tk.Widget,
+                         kwargs: dict = None) -> tk.Widget:
+        """
+        コンポーネントの種類に応じて適切にインスタンス化する共通メソッド
+        """
+        kwargs = kwargs or {}
+
+        # ContainerMixinを継承しているかチェック
+        is_container = issubclass(cls, ContainerMixin)
+
+        if is_container:
+            # Containerの場合はstoreを渡す
+            return cls(parent=parent, store=self.store, **kwargs)
+        else:
+            # Presentationalの場合はstoreなし
+            return cls(parent=parent, **kwargs)
 
     def register_processor(self, proc: Type[P], name: Optional[str] = None) -> str:
         """
@@ -724,6 +841,18 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
         self._processors[name].teardown()
         del self._processors[name]
 
+    def set_template(self, template_cls: TemplateComponentType) -> None:
+        """
+        アプリケーションにテンプレートを設定する。
+        
+        Args:
+            template_cls: TemplateComponentを継承したクラス
+        """
+        if self.active:
+            self.active.destroy()
+        self.active = template_cls(parent=self.main_frame, store=self.store)
+        self.active.pack(fill=tk.BOTH, expand=True)
+
     def switch_container(
         self,
         cls: ContainerComponentType,
@@ -731,20 +860,57 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
     ) -> None:
         """
         メインフレーム内のコンテナを切り替えます。
+        テンプレートが設定されている場合は、デフォルトスロットに切り替えます。
 
         Args:
             cls: コンテナクラス
             kwargs: コンテナ初期化用パラメータ辞書
         """
-        if self.active:
-            self.active.destroy()
-        kwargs = kwargs or {}
-        self.active = cls(parent=self.main_frame, store=self.store, **kwargs)
-        self.active.pack(fill=tk.BOTH, expand=True)
+        # テンプレートが設定されている場合
+        if self.active and isinstance(self.active, TemplateMixin):
+            # デフォルトスロット（"main" または "content"）を探す
+            slots = self.active.get_slots()
+            if "main" in slots:
+                self.active.switch_slot_content("main", cls, kwargs)
+            elif "content" in slots:
+                self.active.switch_slot_content("content", cls, kwargs)
+            else:
+                # デフォルトスロットがない場合は最初のスロットを使用
+                if slots:
+                    first_slot = list(slots.keys())[0]
+                    self.active.switch_slot_content(first_slot, cls, kwargs)
+                else:
+                    raise RuntimeError("Template has no slots defined")
+        else:
+            # 通常のコンテナ切り替え
+            if self.active:
+                self.active.destroy()
+            kwargs = kwargs or {}
+            self.active = self._create_component(cls, self.main_frame, kwargs)
+            self.active.pack(fill=tk.BOTH, expand=True)
+
+    def switch_slot(
+        self,
+        slot_name: str,
+        cls: ComponentType,
+        kwargs: dict = None,
+    ) -> None:
+        """
+        テンプレートの特定スロットのコンテンツを切り替える。
+        
+        Args:
+            slot_name: スロット名
+            cls: コンポーネントクラス
+            kwargs: コンポーネント初期化用パラメータ辞書
+        """
+        if not self.active or not isinstance(self.active, TemplateMixin):
+            raise RuntimeError("No template is set. Use set_template() first.")
+        
+        self.active.switch_slot_content(slot_name, cls, kwargs)
 
     def open_subwindow(
         self,
-        cls: ContainerComponentType,
+        cls: ComponentType,
         win_id: Optional[str] = None,
         kwargs: dict = None,
     ) -> str:
@@ -753,8 +919,8 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
 
         Args:
             win_id: 任意のウィンドウキー。未指定または重複時は自動生成します。
-            cls: ウィジェットクラス
-            kwargs: コンテナ初期化用パラメータ辞書
+            cls: コンポーネントクラス
+            kwargs: コンポーネント初期化用パラメータ辞書
         Returns:
             使用したウィンドウID
         """
@@ -776,13 +942,8 @@ class ApplicationCommon(PubSubBase, Generic[TState]):
         kwargs = kwargs or {}
         kwargs["win_id"] = unique_id
 
-        # PresentationalComponentならstore不要
-        is_container = issubclass(cls, ContainerMixin)
-        if is_container:
-            comp = cls(parent=toplevel, store=self.store, **kwargs)
-        else:
-            comp = cls(parent=toplevel, **kwargs)
-
+        # 共通メソッドを使用
+        comp = self._create_component(cls, toplevel, kwargs)
         comp.pack(fill=tk.BOTH, expand=True)
 
         def on_close():
@@ -865,9 +1026,14 @@ class ThemedApplication(ApplicationCommon, ThemedTk):
         self.init_common(title, geometry)
 ```
 
-### UI Components
+> **注意**
+>
+> * `TemplateMixin` およびそれに関連するコード（`pubsubtk/ui/base/template_base.py` や `pubsubtk/ui/types`）は、本ガイドで説明していますが、ソースコード例としては別途提供される実装ファイルを参照してください。
+
+### UIコンポーネント
 
 #### `src/pubsubtk/ui/base/container_base.py`
+
 ```python
 import tkinter as tk
 from abc import ABC, abstractmethod
@@ -957,7 +1123,8 @@ class ContainerComponentTtk(ContainerMixin[TState], ttk.Frame, Generic[TState]):
 ContainerComponentType = Type[ContainerComponentTk] | Type[ContainerComponentTtk]
 ```
 
-#### `src/pubsubtk/ui/base/presentaional_base.py`
+#### `src/pubsubtk/ui/base/presentational_base.py`
+
 ```python
 import tkinter as tk
 from abc import ABC, abstractmethod
@@ -1026,9 +1193,13 @@ class PresentationalComponentTtk(PresentationalMixin, ttk.Frame):
         PresentationalMixin.__init__(self, *args, **kwargs)
 ```
 
-### Processor System
+> **メモ**
+> 新版では TemplateComponent や ComponentType を使ったテンプレート処理が推奨されていますが、具体的な `template_base.py` および型定義（`pubsubtk/ui/types`）は利用環境に応じた別ファイルで管理してください。
+
+### Processorシステム
 
 #### `src/pubsubtk/processor/processor_base.py`
+
 ```python
 from typing import Generic, TypeVar
 
@@ -1056,7 +1227,9 @@ class ProcessorBase(PubSubDefaultTopicBase, Generic[TState]):
         super().__init__(*args, **kwargs)
 ```
 
-### Built-in Method Usage (RECOMMENDED)
+---
+
+## 組み込みメソッドの使用（推奨）
 
 ```python
 # ✅ RECOMMENDED: Use built-in convenience methods
@@ -1074,7 +1247,9 @@ class MyContainer(ContainerComponentTk[AppState]):
         self.publish(DefaultUpdateTopic.UPDATE_STATE, state_path="count", new_value=42)
 ```
 
-### State Path Usage (RECOMMENDED)
+---
+
+## Stateパスの使用（推奨）
 
 ```python
 # ✅ RECOMMENDED: Use state proxy directly for most operations
@@ -1098,10 +1273,136 @@ self.sub_state_changed("user.name", self.on_name_changed)
 # The state proxy provides IDE autocomplete and "Go to Definition" support
 ```
 
+---
+
+## コンポーネントライフサイクル
+
+* **Container Components**:
+
+  * コンストラクタで `store` を受け取り、`setup_ui()` と `refresh_from_state()` を実装する
+  * `destroy()` 時に自動的に `teardown()` が呼び出され、PubSub の購読を解除
+* **Presentational Components**:
+
+  * コンストラクタで UI を構築し、`update_data()` を実装する
+  * 外部データを受け取って画面表示のみを行う（状態管理を持たない）
+* **Template Components**:
+
+  * `define_slots()` でレイアウト用スロット（例: header, sidebar, main など）を定義
+  * `setup_template()`（任意）で初期レイアウト設定を行う
+  * `switch_slot_content(slot_name, Component, kwargs)` で特定スロット内のコンテンツを差し替える
+* **Processors**:
+
+  * `setup_subscriptions()` でトピック購読を設定し、ビジネスロジックを実装
+  * `teardown()` によって購読を解除
+
+---
+
+## 共通インポートパターン
+
+```python
+import tkinter as tk
+import pubsubtk
+from pydantic import BaseModel
+from typing import List, Optional, Dict
+```
+
+---
+
+## ナビゲーションパターン
+
+```python
+# Set template (optional)
+app.set_template(MyTemplate)
+
+# Switch main container
+self.pub_switch_container(NewContainer, kwargs={"param": value})
+
+# Switch template slot content
+self.pub_switch_slot("header", HeaderView)
+self.pub_switch_slot("sidebar", NavigationPanel, kwargs={"active": "home"})
+
+# Open subwindow (works with any component type)
+self.pub_open_subwindow(DialogContainer, win_id="settings", kwargs={"param": value})
+
+# Close specific subwindow
+self.pub_close_subwindow("settings")
+
+# Close all subwindows
+self.pub_close_all_subwindows()
+```
+
+---
+
+## テンプレート使用パターン
+
+```python
+# Define template with multiple slots
+class DashboardTemplate(pubsubtk.TemplateComponentTtk[AppState]):
+    def define_slots(self):
+        # Create layout areas
+        self.top = ttk.Frame(self)
+        self.top.pack(fill=tk.X)
+        
+        self.center = ttk.Frame(self)
+        self.center.pack(fill=tk.BOTH, expand=True)
+        
+        self.left = ttk.Frame(self.center, width=200)
+        self.left.pack(side=tk.LEFT, fill=tk.Y)
+        
+        self.main = ttk.Frame(self.center)
+        self.main.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        return {
+            "header": self.top,
+            "sidebar": self.left,
+            "main": self.main
+        }
+
+# Apply template to app
+app.set_template(DashboardTemplate)
+
+# Components automatically go to appropriate slots
+app.pub_switch_container(MainView)  # Goes to "main" slot
+app.pub_switch_slot("sidebar", SidebarNav)
+app.pub_switch_slot("header", HeaderBar)
+```
+
+---
+
+## エラー処理
+
+* **Stateパスエラー**: `AttributeError` を発生させ、どのパスが存在しないかを明示
+* **Processor登録衝突**: 自動的にサフィックスを付与して回避
+* **Processor 削除失敗**: `KeyError` を発生させ、登録されていない Processor 名を通知
+* **テンプレートスロットエラー**: 存在しないスロット名を指定した場合は `ValueError` または `RuntimeError` を発生させる
+
+---
+
+## コンポーネントタイプの柔軟性
+
+新版では、以下のように **Container**・**Presentational**・**Template** の枠組みをまたいで柔軟にコンポーネントを利用できます。
+
+```python
+# Containers can be used anywhere
+self.pub_switch_container(MyContainer)
+self.pub_open_subwindow(MyContainer)
+self.pub_switch_slot("main", MyContainer)
+
+# Presentational components can be used in subwindows and slots
+self.pub_open_subwindow(MyPresentationalView, kwargs={"data": some_data})
+self.pub_switch_slot("status", StatusBarView)
+
+# Templates organize the overall layout
+app.set_template(MyTemplate)
+```
+
+---
+
 ## Key Design Patterns
 
-### 1. State-First Architecture
-Always define your application state as a Pydantic model first:
+### 1. State-Firstアーキテクチャ
+
+常にアプリケーションの状態を Pydantic モデルとして定義し、そのモデルを Store が管理します。
 
 ```python
 from pydantic import BaseModel
@@ -1118,7 +1419,8 @@ class AppState(BaseModel):
     next_id: int = 1
 ```
 
-### 2. Application Setup Pattern
+### 2. アプリケーションセットアップパターン
+
 ```python
 import pubsubtk
 
@@ -1140,7 +1442,41 @@ if __name__ == "__main__":
     app.run()
 ```
 
-### 3. Container Component Pattern
+### 3. テンプレートコンポーネントパターン
+
+```python
+class AppTemplate(pubsubtk.TemplateComponentTk[AppState]):
+    def define_slots(self) -> Dict[str, tk.Widget]:
+        # Header with navigation
+        self.header_frame = tk.Frame(self, height=60, bg='navy')
+        self.header_frame.pack(fill=tk.X)
+        
+        tk.Label(self.header_frame, text="My App", 
+                fg='white', bg='navy', font=('Arial', 16)).pack(pady=10)
+        
+        # Main content area
+        self.main_frame = tk.Frame(self)
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Status bar
+        self.status_frame = tk.Frame(self, height=30, bg='gray')
+        self.status_frame.pack(fill=tk.X)
+        
+        return {
+            "header": self.header_frame,
+            "main": self.main_frame,
+            "status": self.status_frame
+        }
+
+# Usage
+app = TodoApp()
+app.set_template(AppTemplate)  # テンプレートを設定
+app.pub_switch_container(TodoListContainer)  # "main" スロットにコンテナを表示
+app.pub_switch_slot("status", StatusBarView)  # "status" スロットにビューを表示
+```
+
+### 4. Containerコンポーネントパターン
+
 ```python
 class MainContainer(pubsubtk.ContainerComponentTk[AppState]):
     def setup_ui(self):
@@ -1182,7 +1518,8 @@ class MainContainer(pubsubtk.ContainerComponentTk[AppState]):
         self.refresh_from_state()
 ```
 
-### 4. Processor Pattern (Business Logic)
+### 5. Processorパターン
+
 ```python
 class TodoProcessor(pubsubtk.ProcessorBase[AppState]):
     def setup_subscriptions(self):
@@ -1205,88 +1542,20 @@ class TodoProcessor(pubsubtk.ProcessorBase[AppState]):
         self.pub_update_state(str(self.store.state.todos), new_todos)
 ```
 
-## Important Notes for AI Code Generation
+---
 
-### 1. Type Safety Rules
-- **Always** use generic type parameters: `ContainerComponentTk[YourState]`
-- **Always** pass the state class to application constructor: `TkApplication(YourState)`
-- Use `str(self.store.state.field_name)` for state path in pub methods
+## 依存関係
 
-### 2. State Update Patterns
-```python
-# ✅ Correct: Use pub methods for state updates
-self.pub_update_state(str(self.store.state.count), new_value)
-self.pub_add_to_list(str(self.store.state.items), new_item)
+* `pydantic`: 状態のモデリングとバリデーション
+* `pypubsub`: 内部的な PubSub 実装
+* `ttkthemes`: テーマ対応アプリケーションサポート（任意）
+* `tkinter`: GUI フレームワーク（Python 標準搭載）
 
-# ❌ Wrong: Don't call store methods directly in UI components
-self.store.update_state("count", new_value)  # This breaks PubSub pattern
-```
+---
 
-### 3. Component Lifecycle
-- **Container components**: Get `store` parameter, implement `setup_ui()` and `refresh_from_state()`
-- **Presentational components**: No store access, implement `setup_ui()` and `update_data()`
-- **Processors**: Get `store` parameter, implement `setup_subscriptions()` for business logic
+## StateプロキシによるIDEサポート
 
-### 4. Common Import Pattern
-```python
-import tkinter as tk
-import pubsubtk
-from pydantic import BaseModel
-from typing import List, Optional
-```
-
-### 5. Navigation Patterns
-```python
-# Switch main container
-self.pub_switch_container(NewContainer, kwargs={"param": value})
-
-# Open subwindow
-self.pub_open_subwindow(DialogContainer, win_id="settings", kwargs={"param": value})
-
-# Close specific subwindow
-self.pub_close_subwindow("settings")
-
-# Close all subwindows
-self.pub_close_all_subwindows()
-```
-
-### 6. Debug Usage
-```python
-# Enable debug logging to see all PubSub activity
-pubsubtk.enable_pubsub_debug_logging()
-
-# Your app code here...
-
-# Disable when not needed
-pubsubtk.disable_pubsub_debug_logging()
-```
-
-### 7. State Proxy Usage
-The state proxy enables IDE support and type safety:
-```python
-# ✅ Good: IDE can autocomplete and navigate to definition
-path = str(self.store.state.user.name)
-self.pub_update_state(path, "New Name")
-
-# ✅ Also good: Direct string if you know the path
-self.pub_update_state("user.name", "New Name")
-
-# The proxy validates paths at runtime and provides __str__ representation
-```
-
-### 8. Error Handling
-- State path errors raise `AttributeError` with descriptive messages
-- Processor registration conflicts are handled automatically with suffix generation
-- Missing processors raise `KeyError` with clear error messages
-
-## Dependencies
-- `pydantic`: State modeling and validation
-- `pypubsub`: Internal PubSub implementation
-- `ttkthemes`: Themed application support (optional)
-- `tkinter`: GUI framework (built into Python)
-
-### State Proxy for IDE Support
-The state proxy system enables IDE features like autocomplete and "Go to Definition":
+StateProxy を使うことで、IDE の補完機能や「定義へ移動」が可能になります。
 
 ```python
 # The proxy validates paths at runtime and provides string representation
@@ -1296,5 +1565,3 @@ self.pub_update_state(path, "new@email.com")
 # IDE can navigate to AppState.user.email definition
 # IDE provides autocomplete for available fields
 ```
-
-This library enables clean separation of concerns, type-safe state management, and reactive UI updates in Tkinter applications through the PubSub pattern.
