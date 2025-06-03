@@ -1,12 +1,13 @@
 import tkinter as tk
 from abc import ABC, abstractmethod
 from tkinter import ttk
-from typing import Any, Dict, Generic, Type, TypeVar
+from typing import Any, Dict, Generic, Type, TypeVar, Union
 
 from pydantic import BaseModel
 
 from pubsubtk.store.store import Store
-from pubsubtk.ui.base.container_base import ContainerMixin, ComponentType
+from pubsubtk.ui.base.container_base import ContainerMixin
+from pubsubtk.ui.types import ComponentType
 
 TState = TypeVar("TState", bound=BaseModel)
 
@@ -151,7 +152,3 @@ class TemplateComponentTtk(TemplateMixin[TState], ttk.Frame, Generic[TState]):
     def __init__(self, parent: tk.Widget, store: Store[TState], *args, **kwargs):
         ttk.Frame.__init__(self, master=parent)
         TemplateMixin.__init__(self, store=store, *args, **kwargs)
-
-
-# Type definition
-TemplateComponentType = Type[TemplateComponentTk] | Type[TemplateComponentTtk]

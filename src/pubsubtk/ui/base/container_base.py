@@ -81,15 +81,3 @@ class ContainerComponentTtk(ContainerMixin[TState], ttk.Frame, Generic[TState]):
     def __init__(self, parent: tk.Widget, store: Store[TState], *args, **kwargs: Any):
         ttk.Frame.__init__(self, master=parent)
         ContainerMixin.__init__(self, store=store, *args, **kwargs)
-
-
-# Import presentational types for ComponentType
-from pubsubtk.ui.base.presentaional_base import (
-    PresentationalComponentTk,
-    PresentationalComponentTtk,
-)
-
-# Type definitions
-ContainerComponentType = Type[ContainerComponentTk] | Type[ContainerComponentTtk]
-PresentationalComponentType = Type[PresentationalComponentTk] | Type[PresentationalComponentTtk]
-ComponentType = ContainerComponentType | PresentationalComponentType

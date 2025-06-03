@@ -10,6 +10,12 @@ from .base.template_base import (
     TemplateComponentTk,
     TemplateComponentTtk,
 )
+from .types import (
+    ComponentType,
+    ContainerComponentType,
+    PresentationalComponentType,
+    TemplateComponentType,
+)
 
 __all__ = [
     "PresentationalComponentTk",
@@ -18,4 +24,9 @@ __all__ = [
     "ContainerComponentTtk",
     "TemplateComponentTk",
     "TemplateComponentTtk",
+    # Types
+    "ComponentType",
+    "ContainerComponentType", 
+    "PresentationalComponentType",
+    "TemplateComponentType",
 ]

@@ -5,16 +5,17 @@ from typing import Dict, Generic, Optional, Tuple, Type, TypeVar
 from pydantic import BaseModel
 from ttkthemes import ThemedTk
 
-from pubsubtk.core.pubsub_base import PubSubBase
+from pubsubtk.core.default_topic_base import PubSubDefaultTopicBase
 from pubsubtk.processor.processor_base import ProcessorBase
 from pubsubtk.store.store import get_store
 from pubsubtk.topic.topics import DefaultNavigateTopic, DefaultProcessorTopic
-from pubsubtk.ui.base.container_base import (
-    ContainerComponentType,
-    ContainerMixin,
+from pubsubtk.ui.base.container_base import ContainerMixin
+from pubsubtk.ui.base.template_base import TemplateMixin
+from pubsubtk.ui.types import (
     ComponentType,
+    ContainerComponentType,
+    TemplateComponentType,
 )
-from pubsubtk.ui.base.template_base import TemplateComponentType, TemplateMixin
 
 TState = TypeVar("TState", bound=BaseModel)
 P = TypeVar("P", bound=ProcessorBase)
@@ -29,7 +30,7 @@ def _default_poll(loop: asyncio.AbstractEventLoop, root: tk.Tk, interval: int) -
     root.after(interval, _default_poll, loop, root, interval)
 
 
-class ApplicationCommon(PubSubBase, Generic[TState]):
+class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
     """Tk/Ttk いずれのウィンドウクラスでも共通の機能を提供する Mixin"""
 
     def __init__(self, state_cls: Type[TState], *args, **kwargs):

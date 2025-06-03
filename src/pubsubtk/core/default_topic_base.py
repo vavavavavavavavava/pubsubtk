@@ -12,7 +12,7 @@ from pubsubtk.topic.topics import (
 if TYPE_CHECKING:
     # 型チェック時（mypy や IDE 補完時）のみ読み込む
     from pubsubtk.processor.processor_base import ProcessorBase
-    from pubsubtk.ui.base.container_base import ContainerComponentType, ComponentType
+    from pubsubtk.ui.types import ContainerComponentType, ComponentType
 
 
 class PubSubDefaultTopicBase(PubSubBase):

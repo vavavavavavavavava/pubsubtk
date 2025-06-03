@@ -1,14 +1,13 @@
 import tkinter as tk
 from abc import ABC, abstractmethod
 from tkinter import ttk
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Type
 
 
 class PresentationalMixin(ABC):
     """
     表示専用コンポーネント用のMixin。
 
-    - 外部データでUIを更新するupdate_data()を抽象メソッドとして提供
     - 任意のイベントハンドラ登録・発火機能を持つ
     """
 
@@ -26,14 +25,6 @@ class PresentationalMixin(ABC):
         サブクラスで実装する。
         """
         pass
-
-    @abstractmethod
-    def update_data(self, *args: Any, **kwargs: Any) -> None:
-        """
-        外部データでUIを更新するためのメソッド。
-        サブクラスで実装する。
-        """
-        ...
 
     def register_handler(self, event_name: str, handler: Callable[..., Any]) -> None:
         self._handlers[event_name] = handler
