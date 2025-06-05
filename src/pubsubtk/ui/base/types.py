@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pubsubtk.ui.base.container_base import ContainerComponentTk, ContainerComponentTtk
-    from pubsubtk.ui.base.presentaional_base import PresentationalComponentTk, PresentationalComponentTtk
+    from pubsubtk.ui.base.presentational_base import PresentationalComponentTk, PresentationalComponentTtk
     from pubsubtk.ui.base.template_base import TemplateComponentTk, TemplateComponentTtk
 
 # Container component types
