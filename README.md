@@ -78,7 +78,7 @@ IDE補完・型安全・設計思想に沿ったメソッド名に統一され�
 | `pub_close_all_subwindows()`              | サブウィンドウをすべて閉じる                        | Container / Processor |
 | `pub_update_state(path, value)`           | 任意パスの状態を型安全に更新                        | Processor / Container |
 | `pub_add_to_list(path, item)`             | リスト要素を型安全に追加                          | Processor / Container |
-| `pub_registor_processor(cls, name)`       | Processor を動的に登録                      | Processor             |
+| `pub_register_processor(cls, name)`       | Processor を動的に登録                      | Processor             |
 | `pub_delete_processor(name)`              | Processor を削除                         | Processor             |
 | `sub_state_changed(path, handler)`        | 指定パスの値変更を購読                           | Container             |
 | `sub_state_added(path, handler)`          | リストへの要素追加を購読                          | Container             |

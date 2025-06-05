@@ -350,7 +350,7 @@ class PubSubDefaultTopicBase(PubSubBase):
             DefaultUpdateTopic.ADD_TO_LIST, state_path=str(state_path), item=item
         )
 
-    def pub_registor_processor(
+    def pub_register_processor(
         self,
         proc: Type[ProcessorBase],
         name: Optional[str] = None,
@@ -365,7 +365,7 @@ class PubSubDefaultTopicBase(PubSubBase):
         Note:
             登録されたProcessorは、アプリケーションのライフサイクルを通じて有効です。
         """
-        self.publish(DefaultProcessorTopic.REGISTOR_PROCESSOR, proc=proc, name=name)
+        self.publish(DefaultProcessorTopic.REGISTER_PROCESSOR, proc=proc, name=name)
 
     def pub_delete_processor(self, name: str) -> None:
         """指定した名前のProcessorを削除するPubSubメッセージを送信する。
@@ -472,7 +472,7 @@ class DefaultProcessorTopic(AutoNamedTopic):
     標準的なプロセッサ管理のPubSubトピック列挙型。
     """
 
-    REGISTOR_PROCESSOR = auto()
+    REGISTER_PROCESSOR = auto()
     DELETE_PROCESSOR = auto()
 ```
 
@@ -784,7 +784,7 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
             DefaultNavigateTopic.CLOSE_ALL_SUBWINDOWS, self.close_all_subwindows
         )
         self.subscribe(
-            DefaultProcessorTopic.REGISTOR_PROCESSOR, self.register_processor
+            DefaultProcessorTopic.REGISTER_PROCESSOR, self.register_processor
         )
         self.subscribe(DefaultProcessorTopic.DELETE_PROCESSOR, self.delete_processor)
 
@@ -1431,7 +1431,7 @@ class TodoApp(pubsubtk.TkApplication):
         
     def setup_custom_logic(self):
         # Register processors for business logic
-        self.pub_registor_processor(TodoProcessor)
+        self.pub_register_processor(TodoProcessor)
         
         # Switch to main container
         self.pub_switch_container(MainContainer)

@@ -62,7 +62,7 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
             DefaultNavigateTopic.CLOSE_ALL_SUBWINDOWS, self.close_all_subwindows
         )
         self.subscribe(
-            DefaultProcessorTopic.REGISTOR_PROCESSOR, self.register_processor
+            DefaultProcessorTopic.REGISTER_PROCESSOR, self.register_processor
         )
         self.subscribe(DefaultProcessorTopic.DELETE_PROCESSOR, self.delete_processor)
 

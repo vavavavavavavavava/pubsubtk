@@ -237,7 +237,7 @@ class AppState(BaseModel):
 ### 2. アプリケーションセットアップパターン
 
 * `TkApplication` または `ThemedApplication` を継承し、初期ウィンドウ設定と PubSub の Mixin を組み合わせる。
-* 起動時に `pub_registor_processor()` で必要な Processor を登録し、`pub_switch_container()` で最初の Container を表示。
+* 起動時に `pub_register_processor()` で必要な Processor を登録し、`pub_switch_container()` で最初の Container を表示。
 
 ```python
 class MyApp(pubsubtk.TkApplication[AppState]):
@@ -245,7 +245,7 @@ class MyApp(pubsubtk.TkApplication[AppState]):
         super().__init__(AppState, title="My App", geometry="600x400")
 
     def setup_custom_logic(self):
-        self.pub_registor_processor(MyProcessor)
+        self.pub_register_processor(MyProcessor)
         self.pub_switch_container(MainContainer)
 ```
 
