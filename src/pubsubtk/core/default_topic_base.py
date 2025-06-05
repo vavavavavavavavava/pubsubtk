@@ -135,7 +135,7 @@ class PubSubDefaultTopicBase(PubSubBase):
             DefaultUpdateTopic.ADD_TO_LIST, state_path=str(state_path), item=item
         )
 
-    def pub_registor_processor(
+    def pub_register_processor(
         self,
         proc: Type[ProcessorBase],
         name: Optional[str] = None,
@@ -150,7 +150,7 @@ class PubSubDefaultTopicBase(PubSubBase):
         Note:
             登録されたProcessorは、アプリケーションのライフサイクルを通じて有効です。
         """
-        self.publish(DefaultProcessorTopic.REGISTOR_PROCESSOR, proc=proc, name=name)
+        self.publish(DefaultProcessorTopic.REGISTER_PROCESSOR, proc=proc, name=name)
 
     def pub_delete_processor(self, name: str) -> None:
         """指定した名前のProcessorを削除するPubSubメッセージを送信する。

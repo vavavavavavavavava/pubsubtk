@@ -51,5 +51,5 @@ class DefaultProcessorTopic(AutoNamedTopic):
     標準的なプロセッサ管理のPubSubトピック列挙型。
     """
 
-    REGISTOR_PROCESSOR = auto()
+    REGISTER_PROCESSOR = auto()
     DELETE_PROCESSOR = auto()
