@@ -2,7 +2,7 @@ from .base.container_base import (
     ContainerComponentTk,
     ContainerComponentTtk,
 )
-from .base.presentaional_base import (
+from .base.presentational_base import (
     PresentationalComponentTk,
     PresentationalComponentTtk,
 )
