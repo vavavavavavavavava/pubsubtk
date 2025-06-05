@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 import tkinter as tk
-from typing import Dict, Generic, Optional, Tuple, Type, TypeVar
+from typing import TYPE_CHECKING, Dict, Generic, Optional, Tuple, Type, TypeVar
 
 from pydantic import BaseModel
 from ttkthemes import ThemedTk
@@ -11,11 +13,13 @@ from pubsubtk.store.store import get_store
 from pubsubtk.topic.topics import DefaultNavigateTopic, DefaultProcessorTopic
 from pubsubtk.ui.base.container_base import ContainerMixin
 from pubsubtk.ui.base.template_base import TemplateMixin
-from pubsubtk.ui.types import (
-    ComponentType,
-    ContainerComponentType,
-    TemplateComponentType,
-)
+
+if TYPE_CHECKING:
+    from pubsubtk.ui.types import (
+        ComponentType,
+        ContainerComponentType,
+        TemplateComponentType,
+    )
 
 TState = TypeVar("TState", bound=BaseModel)
 P = TypeVar("P", bound=ProcessorBase)
@@ -66,10 +70,9 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         )
         self.subscribe(DefaultProcessorTopic.DELETE_PROCESSOR, self.delete_processor)
 
-    def _create_component(self,
-                         cls: ComponentType,
-                         parent: tk.Widget,
-                         kwargs: dict = None) -> tk.Widget:
+    def _create_component(
+        self, cls: ComponentType, parent: tk.Widget, kwargs: dict = None
+    ) -> tk.Widget:
         """
         コンポーネントの種類に応じて適切にインスタンス化する共通メソッド
         """
@@ -122,7 +125,7 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
     def set_template(self, template_cls: TemplateComponentType) -> None:
         """
         アプリケーションにテンプレートを設定する。
-        
+
         Args:
             template_cls: TemplateComponentを継承したクラス
         """
@@ -175,7 +178,7 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
     ) -> None:
         """
         テンプレートの特定スロットのコンテンツを切り替える。
-        
+
         Args:
             slot_name: スロット名
             cls: コンポーネントクラス
@@ -183,7 +186,7 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         """
         if not self.active or not isinstance(self.active, TemplateMixin):
             raise RuntimeError("No template is set. Use set_template() first.")
-        
+
         self.active.switch_slot_content(slot_name, cls, kwargs)
 
     def open_subwindow(

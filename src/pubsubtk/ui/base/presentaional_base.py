@@ -1,7 +1,7 @@
 import tkinter as tk
 from abc import ABC, abstractmethod
 from tkinter import ttk
-from typing import Any, Callable, Dict, Type
+from typing import Any, Callable, Dict
 
 
 class PresentationalMixin(ABC):

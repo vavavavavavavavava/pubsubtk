@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 import tkinter as tk
 from abc import ABC, abstractmethod
 from tkinter import ttk
-from typing import Any, Dict, Generic, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Dict, Generic, TypeVar
 
 from pydantic import BaseModel
 
 from pubsubtk.store.store import Store
 from pubsubtk.ui.base.container_base import ContainerMixin
-from pubsubtk.ui.types import ComponentType
+
+if TYPE_CHECKING:
+    from pubsubtk.ui.types import ComponentType
 
 TState = TypeVar("TState", bound=BaseModel)
 
@@ -15,10 +19,10 @@ TState = TypeVar("TState", bound=BaseModel)
 class TemplateMixin(ABC, Generic[TState]):
     """
     テンプレートコンポーネント用のMixin。
-    
+
     複数のスロット（区画）を定義し、各スロットに独立してコンポーネントを配置できる。
     ヘッダー・フッターなど固定部分と可変部分を分離したレイアウトを実現。
-    
+
     Note:
         テンプレート自体は状態を持たず、レイアウト定義とスロット管理のみを行う。
         各スロットに配置されるコンポーネントが独自に状態管理を行う。
@@ -28,7 +32,7 @@ class TemplateMixin(ABC, Generic[TState]):
         self.store = store
         self._slots: Dict[str, tk.Widget] = {}
         self._slot_contents: Dict[str, tk.Widget] = {}
-        
+
         # テンプレートのセットアップ
         self.setup_template()
         self._slots = self.define_slots()
@@ -44,23 +48,23 @@ class TemplateMixin(ABC, Generic[TState]):
     def define_slots(self) -> Dict[str, tk.Widget]:
         """
         スロット（区画）を定義する。
-        
+
         Returns:
             Dict[str, tk.Widget]: {"スロット名": フレームWidget} の辞書
-            
+
         Example:
             # ヘッダー
             self.header_frame = tk.Frame(self, height=60, bg='navy')
             self.header_frame.pack(fill=tk.X)
-            
+
             # メインコンテンツ
             self.main_frame = tk.Frame(self)
             self.main_frame.pack(fill=tk.BOTH, expand=True)
-            
+
             # フッター
             self.footer_frame = tk.Frame(self, height=30, bg='gray')
             self.footer_frame.pack(fill=tk.X)
-            
+
             return {
                 "header": self.header_frame,
                 "main": self.main_frame,
@@ -69,13 +73,12 @@ class TemplateMixin(ABC, Generic[TState]):
         """
         pass
 
-    def switch_slot_content(self,
-                          slot_name: str,
-                          cls: ComponentType,
-                          kwargs: dict = None) -> None:
+    def switch_slot_content(
+        self, slot_name: str, cls: ComponentType, kwargs: dict = None
+    ) -> None:
         """
         指定スロットのコンテンツを切り替える。
-        
+
         Args:
             slot_name: スロット名
             cls: コンポーネントクラス（Container/Presentational両対応）
@@ -95,10 +98,9 @@ class TemplateMixin(ABC, Generic[TState]):
 
         self._slot_contents[slot_name] = content
 
-    def _create_component_for_slot(self,
-                                 cls: ComponentType,
-                                 parent: tk.Widget,
-                                 kwargs: dict = None) -> tk.Widget:
+    def _create_component_for_slot(
+        self, cls: ComponentType, parent: tk.Widget, kwargs: dict = None
+    ) -> tk.Widget:
         """スロット用のコンポーネント生成"""
         kwargs = kwargs or {}
 
