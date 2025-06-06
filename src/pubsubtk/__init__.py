@@ -1,3 +1,7 @@
+# __init__.py - PubSubTk パッケージの外部 API を提供するモジュール
+
+"""PubSubTk パッケージの主要クラスを公開する初期化モジュール。"""
+
 from .app import ThemedApplication, TkApplication
 from .core import enable_pubsub_debug_logging, disable_pubsub_debug_logging
 from .processor import ProcessorBase

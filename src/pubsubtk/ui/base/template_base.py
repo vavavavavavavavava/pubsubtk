@@ -1,3 +1,7 @@
+# template_base.py - テンプレートコンポーネントの基底クラス
+
+"""複数スロットを持つテンプレート UI を構築するための基底クラス。"""
+
 import tkinter as tk
 from abc import ABC, abstractmethod
 from tkinter import ttk
@@ -25,6 +29,8 @@ class TemplateMixin(ABC, Generic[TState]):
     """
 
     def __init__(self, store: Store[TState], *args, **kwargs):
+        """Mixin の初期化処理。"""
+
         self.store = store
         self._slots: Dict[str, tk.Widget] = {}
         self._slot_contents: Dict[str, tk.Widget] = {}
@@ -140,6 +146,8 @@ class TemplateComponentTk(TemplateMixin[TState], tk.Frame, Generic[TState]):
     """
 
     def __init__(self, parent: tk.Widget, store: Store[TState], *args, **kwargs):
+        """tk.Frame ベースのテンプレートを初期化する。"""
+
         tk.Frame.__init__(self, master=parent)
         TemplateMixin.__init__(self, store=store, *args, **kwargs)
 
@@ -150,5 +158,7 @@ class TemplateComponentTtk(TemplateMixin[TState], ttk.Frame, Generic[TState]):
     """
 
     def __init__(self, parent: tk.Widget, store: Store[TState], *args, **kwargs):
+        """ttk.Frame ベースのテンプレートを初期化する。"""
+
         ttk.Frame.__init__(self, master=parent)
         TemplateMixin.__init__(self, store=store, *args, **kwargs)

@@ -1,3 +1,7 @@
+# store.py - アプリケーション状態を管理するクラス
+
+"""Pydantic モデルを用いた型安全な状態管理を提供します。"""
+
 from typing import Any, Generic, Optional, Type, TypeVar, cast
 
 from pubsub import pub
@@ -19,10 +23,19 @@ class StateProxy(Generic[TState]):
     """
 
     def __init__(self, store: "Store[TState]", path: str = ""):
+        """StateProxy を初期化する。
+
+        Args:
+            store: 値を参照する対象 ``Store``。
+            path: 現在のパス文字列。
+        """
+
         self._store = store
         self._path = path
 
     def __getattr__(self, name: str) -> "StateProxy[TState]":
+        """属性アクセスを連結した ``StateProxy`` を返す。"""
+
         new_path = f"{self._path}.{name}" if self._path else name
 
         # 存在チェック：TState モデルに new_path が通るか確認
@@ -36,6 +49,8 @@ class StateProxy(Generic[TState]):
         return StateProxy(self._store, new_path)
 
     def __repr__(self) -> str:
+        """パス文字列を返す。"""
+
         return f"{self._path}"
 
     __str__ = __repr__
@@ -55,11 +70,10 @@ class Store(PubSubBase, Generic[TState]):
     """
 
     def __init__(self, initial_state_class: Type[TState]):
-        """
-        Storeを初期化する。
+        """Store を初期化する。
 
         Args:
-            initial_state_class: Pydanticモデルの型
+            initial_state_class: 管理対象となる ``BaseModel`` のサブクラス。
         """
         self._state_class = initial_state_class
         self._state = initial_state_class()
@@ -85,12 +99,11 @@ class Store(PubSubBase, Generic[TState]):
         return self._state.model_copy(deep=True)
 
     def update_state(self, state_path: str, new_value: Any) -> None:
-        """
-        指定パスの属性を新しい値で更新し、PubSubで変更通知を送信する。
+        """指定パスの属性を更新し、変更通知を送信する。
 
         Args:
-            state_path: 属性パス（例: "foo.bar"）
-            new_value: 新しい値
+            state_path: 変更対象の属性パス（例: ``"foo.bar"``）。
+            new_value: 新しく設定する値。
         """
         target_obj, attr_name, old_value = self._resolve_path(str(state_path))
 
@@ -104,12 +117,11 @@ class Store(PubSubBase, Generic[TState]):
         )
 
     def add_to_list(self, state_path: str, item: Any) -> None:
-        """
-        指定パスのリスト属性に要素を追加し、PubSubで追加通知を送信する。
+        """リスト属性に要素を追加し、追加通知を送信する。
 
         Args:
-            state_path: 属性パス
-            item: 追加する要素
+            state_path: 追加先となるリストの属性パス。
+            item: 追加する要素。
         """
         target_obj, attr_name, current_list = self._resolve_path(str(state_path))
 
@@ -136,7 +148,7 @@ class Store(PubSubBase, Generic[TState]):
         属性パスを解決し、対象オブジェクト・属性名・現在値を返す。
 
         Args:
-            path: 属性パス
+            path: 解析する属性パス。
         Returns:
             (対象オブジェクト, 属性名, 現在値)
         """
@@ -165,9 +177,7 @@ class Store(PubSubBase, Generic[TState]):
     def _validate_and_set_value(
         self, target_obj: Any, attr_name: str, new_value: Any
     ) -> None:
-        """
-        属性値を型検証し、設定する。
-        """
+        """属性値を型検証してから設定する。"""
         # Pydanticモデルの場合、フィールドの型情報を取得
         if isinstance(target_obj, BaseModel):
             model_fields = target_obj.model_fields
@@ -209,11 +219,16 @@ _store: Optional[Store[Any]] = None
 
 
 def get_store(state_cls: Type[TState]) -> Store[TState]:
-    """
-    Store を取得します。未生成の場合は state_cls で新規に作成し、
-    それ以外は既存のインスタンスを返します。
+    """グローバルな ``Store`` インスタンスを取得する。
 
-    同じモジュール内で異なる state_cls を渡すと RuntimeError を投げます。
+    Args:
+        state_cls: ``Store`` 生成に使用する状態モデルの型。
+
+    Returns:
+        共有 ``Store`` インスタンス。
+
+    Raises:
+        RuntimeError: 既に別の ``state_cls`` で生成されている場合。
     """
     global _store
     if _store is None:

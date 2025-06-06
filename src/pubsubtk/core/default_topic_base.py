@@ -1,3 +1,7 @@
+# default_topic_base.py - デフォルトトピック操作をまとめた基底クラス
+
+"""主要な PubSub トピックに対する便利メソッドを提供します。"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Optional, Type

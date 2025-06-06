@@ -1,3 +1,7 @@
+# __init__.py - UI コンポーネントの公開モジュール
+
+"""UI コンポーネント用のクラスをまとめて公開します。"""
+
 from .base.container_base import (
     ContainerComponentTk,
     ContainerComponentTtk,

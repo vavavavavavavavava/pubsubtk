@@ -1,3 +1,7 @@
+# presentational_base.py - 表示専用コンポーネントの基底クラス
+
+"""イベント発火機能を備えた表示専用 UI コンポーネント用基底クラス。"""
+
 import tkinter as tk
 from abc import ABC, abstractmethod
 from tkinter import ttk
@@ -12,6 +16,8 @@ class PresentationalMixin(ABC):
     """
 
     def __init__(self, *args, **kwargs):
+        """Mixin の初期化処理。"""
+
         self.args = args
         self.kwargs = kwargs
 
@@ -41,6 +47,8 @@ class PresentationalComponentTk(PresentationalMixin, tk.Frame):
     """
 
     def __init__(self, parent: tk.Widget, *args, **kwargs):
+        """tk.Frame ベースの表示コンポーネントを初期化する。"""
+
         tk.Frame.__init__(self, master=parent)
         PresentationalMixin.__init__(self, *args, **kwargs)
 
@@ -52,5 +60,7 @@ class PresentationalComponentTtk(PresentationalMixin, ttk.Frame):
     """
 
     def __init__(self, parent: tk.Widget, *args, **kwargs):
+        """ttk.Frame ベースの表示コンポーネントを初期化する。"""
+
         ttk.Frame.__init__(self, master=parent)
         PresentationalMixin.__init__(self, *args, **kwargs)
