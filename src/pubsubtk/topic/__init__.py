@@ -1,3 +1,7 @@
+# __init__.py - トピック定義モジュールの公開インターフェース
+
+"""PubSub トピック列挙型を公開します。"""
+
 from .topics import AutoNamedTopic, DefaultNavigateTopic, DefaultUpdateTopic
 
 __all__ = [
@@ -5,3 +9,4 @@ __all__ = [
     "DefaultNavigateTopic",
     "DefaultUpdateTopic",
 ]
+

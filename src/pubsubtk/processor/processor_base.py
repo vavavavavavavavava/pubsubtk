@@ -1,3 +1,7 @@
+# processor_base.py - Processor の基底クラス
+
+"""ビジネスロジックを担う Processor 用の抽象基底クラス。"""
+
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel
@@ -9,8 +13,13 @@ TState = TypeVar("TState", bound=BaseModel)
 
 
 class ProcessorBase(PubSubDefaultTopicBase, Generic[TState]):
-    def __init__(self, store: Store[TState], *args, **kwargs):
+    """Processor の基底クラス。"""
+
+    def __init__(self, store: Store[TState], *args, **kwargs) -> None:
+        """Store を受け取って初期化します。"""
+
         # 型引数付きの Store[TState] を取得
         self.store: Store[TState] = store
 
         super().__init__(*args, **kwargs)
+

@@ -1,3 +1,7 @@
+# types.py - UI コンポーネント用型エイリアス
+
+"""UI コンポーネントで利用する型エイリアスを定義します。"""
+
 from typing import Type, Union
 
 from typing import TYPE_CHECKING

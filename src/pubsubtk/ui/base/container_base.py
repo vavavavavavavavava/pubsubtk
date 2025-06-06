@@ -1,3 +1,7 @@
+# container_base.py - コンテナコンポーネントの基底クラス
+
+"""状態連携可能な UI コンテナの基底クラスを定義します。"""
+
 import tkinter as tk
 from abc import ABC, abstractmethod
 from tkinter import ttk
@@ -24,9 +28,10 @@ class ContainerMixin(PubSubDefaultTopicBase, ABC, Generic[TState]):
     """
 
     def __init__(self, store: Store[TState], *args, **kwargs: Any):
-        """
+        """コンテナの初期化を行う。
+
         Args:
-            state_cls: Pydanticモデルの型（例: AppState）
+            store: 使用する ``Store`` インスタンス。
         """
         self.args = args
         self.kwargs = kwargs
@@ -69,6 +74,13 @@ class ContainerComponentTk(ContainerMixin[TState], tk.Frame, Generic[TState]):
     """
 
     def __init__(self, parent: tk.Widget, store: Store[TState], *args, **kwargs: Any):
+        """tk.Frame ベースのコンテナを初期化する。
+
+        Args:
+            parent: 親ウィジェット。
+            store: 使用する ``Store`` インスタンス。
+        """
+
         tk.Frame.__init__(self, master=parent)
         ContainerMixin.__init__(self, store=store, *args, **kwargs)
 
@@ -79,5 +91,12 @@ class ContainerComponentTtk(ContainerMixin[TState], ttk.Frame, Generic[TState]):
     """
 
     def __init__(self, parent: tk.Widget, store: Store[TState], *args, **kwargs: Any):
+        """ttk.Frame ベースのコンテナを初期化する。
+
+        Args:
+            parent: 親ウィジェット。
+            store: 使用する ``Store`` インスタンス。
+        """
+
         ttk.Frame.__init__(self, master=parent)
         ContainerMixin.__init__(self, store=store, *args, **kwargs)

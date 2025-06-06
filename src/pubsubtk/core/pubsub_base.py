@@ -1,3 +1,7 @@
+# pubsub_base.py - PubSub 基底クラス
+
+"""Pub/Sub パターンの共通機能をまとめた抽象基底クラス。"""
+
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List

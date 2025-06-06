@@ -1,3 +1,14 @@
+# application_base.py - アプリケーションの基底クラスを定義
+
+"""Tkinter アプリケーション向けの共通基底クラスを提供します。
+
+このモジュールでは、Tk および ttk ベースのアプリケーション構築時に
+利用する共通メソッドをまとめています。``TkApplication`` と
+``ThemedApplication`` の 2 種類のウィンドウクラスを公開しており、
+いずれも ``ApplicationCommon`` Mixin を継承して Pub/Sub 機能と
+状態管理機能を自動的に組み込みます。
+"""
+
 import asyncio
 import tkinter as tk
 from typing import Dict, Generic, Optional, Tuple, Type, TypeVar
@@ -22,6 +33,14 @@ P = TypeVar("P", bound=ProcessorBase)
 
 
 def _default_poll(loop: asyncio.AbstractEventLoop, root: tk.Tk, interval: int) -> None:
+    """非同期イベントループを ``after`` で定期実行する補助関数。
+
+    Args:
+        loop: 実行対象の ``AbstractEventLoop`` インスタンス。
+        root: ``after`` を呼び出す Tk ウィジェット（通常はアプリケーション本体）。
+        interval: ポーリング間隔（ミリ秒）。
+    """
+
     try:
         loop.call_soon(loop.stop)
         loop.run_forever()
@@ -31,15 +50,28 @@ def _default_poll(loop: asyncio.AbstractEventLoop, root: tk.Tk, interval: int) -
 
 
 class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
-    """Tk/Ttk いずれのウィンドウクラスでも共通の機能を提供する Mixin"""
+    """Tk/Ttk いずれのウィンドウクラスでも共通の機能を提供する Mixin."""
 
     def __init__(self, state_cls: Type[TState], *args, **kwargs):
+        """状態クラスを受け取り、Pub/Sub 機能を初期化する。
+
+        Args:
+            state_cls: アプリケーション状態を表す ``BaseModel`` のサブクラス。
+        """
+
         super().__init__(*args, **kwargs)
         self.state_cls = state_cls
         self.store = get_store(state_cls)
         self._processors: Dict[str, ProcessorBase] = {}
 
     def init_common(self, title: str, geometry: str) -> None:
+        """ウィンドウタイトルやメインフレームを設定する共通初期化処理。
+
+        Args:
+            title: ウィンドウタイトル。
+            geometry: ``WIDTHxHEIGHT`` 形式のウィンドウサイズ文字列。
+        """
+
         # ウィンドウ基本設定
         self.title(title)
         self.geometry(geometry)
@@ -53,7 +85,12 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         self._subwindows: Dict[str, Tuple[tk.Toplevel, tk.Widget]] = {}
 
     def setup_subscriptions(self) -> None:
-        # PubSubBase.__init__ 内から自動呼び出しされる
+        """PubSub の購読設定を行う。
+
+        ``PubSubBase.__init__`` から自動で呼び出されるメソッドで、
+        ナビゲーションや Processor 管理に関するトピックを購読します。
+        """
+
         self.subscribe(DefaultNavigateTopic.SWITCH_CONTAINER, self.switch_container)
         self.subscribe(DefaultNavigateTopic.SWITCH_SLOT, self.switch_slot)
         self.subscribe(DefaultNavigateTopic.OPEN_SUBWINDOW, self.open_subwindow)
@@ -70,8 +107,15 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
                          cls: ComponentType,
                          parent: tk.Widget,
                          kwargs: dict = None) -> tk.Widget:
-        """
-        コンポーネントの種類に応じて適切にインスタンス化する共通メソッド
+        """コンポーネントを種類に応じて生成する共通メソッド。
+
+        Args:
+            cls: コンポーネントのクラス。
+            parent: 親ウィジェット。
+            kwargs: コンポーネント初期化用パラメータ辞書。
+
+        Returns:
+            生成したウィジェットインスタンス。
         """
         kwargs = kwargs or {}
 
@@ -93,9 +137,9 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
             proc: ProcessorBaseを継承したクラス
             name: 任意のプロセッサ名。未指定時はクラス名を使用し、重複する場合は接尾辞を追加します。
         Returns:
-            登録に使用したプロセッサ名
+            登録に使用したプロセッサ名。
         Raises:
-            KeyError: 既に同名のプロセッサが登録済みの場合（自動生成でも重複が解消されない場合）
+            KeyError: 既に同名のプロセッサが登録済みの場合。
         """
         # ベース名決定
         base_key = name or proc.__name__
@@ -111,20 +155,17 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         return key
 
     def delete_processor(self, name: str) -> None:
-        """
-        登録済みプロセッサを削除し、teardown()を呼び出します。
-        """
+        """登録済みプロセッサを削除し ``teardown`` を実行する。"""
         if name not in self._processors:
             raise KeyError(f"Processor '{name}' not found.")
         self._processors[name].teardown()
         del self._processors[name]
 
     def set_template(self, template_cls: TemplateComponentType) -> None:
-        """
-        アプリケーションにテンプレートを設定する。
-        
+        """アプリケーションにテンプレートを設定する。
+
         Args:
-            template_cls: TemplateComponentを継承したクラス
+            template_cls: 適用する ``TemplateComponent`` のクラス。
         """
         if self.active:
             self.active.destroy()
@@ -136,13 +177,14 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         cls: ContainerComponentType,
         kwargs: dict = None,
     ) -> None:
-        """
-        メインフレーム内のコンテナを切り替えます。
-        テンプレートが設定されている場合は、デフォルトスロットに切り替えます。
+        """メインフレーム内のコンテナを切り替える。
+
+        テンプレートが設定されている場合は ``switch_slot`` を使用して
+        デフォルトスロットのコンテンツを置き換えます。
 
         Args:
-            cls: コンテナクラス
-            kwargs: コンテナ初期化用パラメータ辞書
+            cls: 切り替え先のコンテナクラス。
+            kwargs: コンテナ初期化用のキーワード引数辞書。
         """
         # テンプレートが設定されている場合
         if self.active and isinstance(self.active, TemplateMixin):
@@ -173,13 +215,12 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         cls: ComponentType,
         kwargs: dict = None,
     ) -> None:
-        """
-        テンプレートの特定スロットのコンテンツを切り替える。
-        
+        """テンプレートの特定スロットのコンテンツを切り替える。
+
         Args:
-            slot_name: スロット名
-            cls: コンポーネントクラス
-            kwargs: コンポーネント初期化用パラメータ辞書
+            slot_name: 変更対象のスロット名。
+            cls: 新しく配置するコンポーネントクラス。
+            kwargs: コンポーネント初期化用のキーワード引数辞書。
         """
         if not self.active or not isinstance(self.active, TemplateMixin):
             raise RuntimeError("No template is set. Use set_template() first.")
@@ -192,15 +233,15 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         win_id: Optional[str] = None,
         kwargs: dict = None,
     ) -> str:
-        """
-        サブウィンドウを開き、ウィンドウIDを返します。
+        """サブウィンドウを開き、生成したウィンドウ ID を返す。
 
         Args:
-            win_id: 任意のウィンドウキー。未指定または重複時は自動生成します。
-            cls: コンポーネントクラス
-            kwargs: コンポーネント初期化用パラメータ辞書
+            cls: 表示するコンポーネントクラス。
+            win_id: 任意のウィンドウ ID。指定しない場合は自動生成される。
+            kwargs: コンポーネント初期化用のキーワード引数辞書。
+
         Returns:
-            使用したウィンドウID
+            実際に使用されたウィンドウ ID。
         """
         # 既存IDであれば前面に
         if win_id and win_id in self._subwindows:
@@ -233,6 +274,8 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         return unique_id
 
     def close_subwindow(self, win_id: str) -> None:
+        """指定 ID のサブウィンドウを閉じる。"""
+
         if win_id not in self._subwindows:
             return
         top, comp = self._subwindows.pop(win_id)
@@ -243,6 +286,8 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         top.destroy()
 
     def close_all_subwindows(self) -> None:
+        """開いているすべてのサブウィンドウを閉じる。"""
+
         for wid in list(self._subwindows):
             self.close_subwindow(wid)
 
@@ -252,6 +297,14 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         loop: Optional[asyncio.AbstractEventLoop] = None,
         poll_interval: int = 50,
     ) -> None:
+        """アプリケーションのメインループを開始する。
+
+        Args:
+            use_async: ``asyncio`` を併用するかどうか。
+            loop: 使用するイベントループ。``None`` の場合は ``get_event_loop`` を使用。
+            poll_interval: ``_default_poll`` を呼び出す間隔（ミリ秒）。
+        """
+
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         if not use_async:
             self.mainloop()
@@ -265,6 +318,11 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
                 pass
 
     def on_closing(self) -> None:
+        """終了時のクリーンアップ処理を行う。
+
+        すべてのサブウィンドウを閉じて ``destroy`` を呼び出す。
+        """
+
         self.close_all_subwindows()
         self.destroy()
 
@@ -278,6 +336,14 @@ class TkApplication(ApplicationCommon, tk.Tk):
         *args,
         **kwargs,
     ):
+        """Tk ベースのアプリケーションを初期化する。
+
+        Args:
+            state_cls: アプリケーション状態モデルの型。
+            title: ウィンドウタイトル。
+            geometry: ``WIDTHxHEIGHT`` 形式のウィンドウサイズ。
+        """
+
         # **first** initialize the actual Tk
         tk.Tk.__init__(self, *args, **kwargs)
         # **then** initialize the PubSub mixin
@@ -296,6 +362,15 @@ class ThemedApplication(ApplicationCommon, ThemedTk):
         *args,
         **kwargs,
     ):
+        """テーマ対応アプリケーションを初期化する。
+
+        Args:
+            state_cls: アプリケーション状態モデルの型。
+            theme: 適用する ttk テーマ名。
+            title: ウィンドウタイトル。
+            geometry: ``WIDTHxHEIGHT`` 形式のウィンドウサイズ。
+        """
+
         # initialize the themed‐Tk
         ThemedTk.__init__(self, theme=theme, *args, **kwargs)
         # mixin init
