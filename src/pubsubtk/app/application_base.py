@@ -9,9 +9,11 @@
 状態管理機能を自動的に組み込みます。
 """
 
+from __future__ import annotations
+
 import asyncio
 import tkinter as tk
-from typing import Dict, Generic, Optional, Tuple, Type, TypeVar
+from typing import TYPE_CHECKING, Dict, Generic, Optional, Tuple, Type, TypeVar
 
 from pydantic import BaseModel
 from ttkthemes import ThemedTk
@@ -22,11 +24,13 @@ from pubsubtk.store.store import get_store
 from pubsubtk.topic.topics import DefaultNavigateTopic, DefaultProcessorTopic
 from pubsubtk.ui.base.container_base import ContainerMixin
 from pubsubtk.ui.base.template_base import TemplateMixin
-from pubsubtk.ui.types import (
-    ComponentType,
-    ContainerComponentType,
-    TemplateComponentType,
-)
+
+if TYPE_CHECKING:
+    from pubsubtk.ui.types import (
+        ComponentType,
+        ContainerComponentType,
+        TemplateComponentType,
+    )
 
 TState = TypeVar("TState", bound=BaseModel)
 P = TypeVar("P", bound=ProcessorBase)
@@ -103,10 +107,9 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         )
         self.subscribe(DefaultProcessorTopic.DELETE_PROCESSOR, self.delete_processor)
 
-    def _create_component(self,
-                         cls: ComponentType,
-                         parent: tk.Widget,
-                         kwargs: dict = None) -> tk.Widget:
+    def _create_component(
+        self, cls: ComponentType, parent: tk.Widget, kwargs: dict = None
+    ) -> tk.Widget:
         """コンポーネントを種類に応じて生成する共通メソッド。
 
         Args:
@@ -224,7 +227,7 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         """
         if not self.active or not isinstance(self.active, TemplateMixin):
             raise RuntimeError("No template is set. Use set_template() first.")
-        
+
         self.active.switch_slot_content(slot_name, cls, kwargs)
 
     def open_subwindow(
@@ -327,7 +330,7 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         self.destroy()
 
 
-class TkApplication(ApplicationCommon, tk.Tk):
+class TkApplication(ApplicationCommon[TState], tk.Tk, Generic[TState]):
     def __init__(
         self,
         state_cls: Type[TState],
@@ -352,7 +355,7 @@ class TkApplication(ApplicationCommon, tk.Tk):
         self.init_common(title, geometry)
 
 
-class ThemedApplication(ApplicationCommon, ThemedTk):
+class ThemedApplication(ApplicationCommon[TState], ThemedTk, Generic[TState]):
     def __init__(
         self,
         state_cls: Type[TState],

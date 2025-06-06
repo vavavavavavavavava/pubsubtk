@@ -30,7 +30,7 @@ class PubSubBase(ABC):
     def subscribe(self, topic: str, handler: Callable, **kwargs) -> None:
         pub.subscribe(handler, topic, **kwargs)
         self._subscriptions.append({"topic": topic, "handler": handler})
-        
+
         # DEBUGログ：購読登録
         _pubsub_logger.debug(
             f"SUBSCRIBE: {self.__class__.__name__} -> topic='{topic}', handler={handler.__name__}"
@@ -40,10 +40,10 @@ class PubSubBase(ABC):
         # DEBUGログ：パブリッシュ（引数も表示）
         args_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
         _pubsub_logger.debug(
-            f"PUBLISH: {self.__class__.__name__} -> topic='{topic}'" + 
-            (f" with args: {args_str}" if args_str else "")
+            f"PUBLISH: {self.__class__.__name__} -> topic='{topic}'"
+            + (f" with args: {args_str}" if args_str else "")
         )
-        
+
         pub.sendMessage(topic, **kwargs)
 
     def unsubscribe(self, topic: str, handler: Callable) -> None:
@@ -53,7 +53,7 @@ class PubSubBase(ABC):
             for s in self._subscriptions
             if not (s["topic"] == topic and s["handler"] == handler)
         ]
-        
+
         # DEBUGログ：購読解除
         _pubsub_logger.debug(
             f"UNSUBSCRIBE: {self.__class__.__name__} -> topic='{topic}', handler={handler.__name__}"
@@ -65,7 +65,7 @@ class PubSubBase(ABC):
             _pubsub_logger.debug(
                 f"UNSUBSCRIBE_ALL: {self.__class__.__name__} -> {len(self._subscriptions)} subscriptions"
             )
-        
+
         for s in list(self._subscriptions):
             pub.unsubscribe(s["handler"], s["topic"])
         self._subscriptions.clear()
@@ -93,26 +93,25 @@ class PubSubBase(ABC):
 def enable_pubsub_debug_logging(level: int = logging.DEBUG) -> None:
     """
     PubSubのデバッグログを有効化する。
-    
+
     Args:
         level: ログレベル（デフォルト: DEBUG）
-    
+
     使用例:
         from pubsubtk.core.pubsub_base import enable_pubsub_debug_logging
         enable_pubsub_debug_logging()
     """
     _pubsub_logger.setLevel(level)
-    
+
     # ハンドラーが未設定の場合はコンソールハンドラーを追加
     if not _pubsub_logger.handlers:
         handler = logging.StreamHandler()
         formatter = logging.Formatter(
-            '[%(asctime)s] %(name)s - %(levelname)s - %(message)s',
-            datefmt='%H:%M:%S'
+            "[%(asctime)s] %(name)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S"
         )
         handler.setFormatter(formatter)
         _pubsub_logger.addHandler(handler)
-    
+
     _pubsub_logger.debug("PubSub debug logging enabled")
 
 

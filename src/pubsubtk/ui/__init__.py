@@ -30,7 +30,7 @@ __all__ = [
     "TemplateComponentTtk",
     # Types
     "ComponentType",
-    "ContainerComponentType", 
+    "ContainerComponentType",
     "PresentationalComponentType",
     "TemplateComponentType",
 ]

@@ -5,7 +5,7 @@
 import tkinter as tk
 from abc import ABC, abstractmethod
 from tkinter import ttk
-from typing import Any, Generic, Type, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
@@ -22,8 +22,8 @@ class ContainerMixin(PubSubDefaultTopicBase, ABC, Generic[TState]):
     - Storeインスタンスを取得し、購読設定・状態反映を自動実行
     - setup_subscriptions()/refresh_from_state()をサブクラスで実装
     - destroy時に購読解除(teardown)も自動
-    
-    **IMPORTANT**: Use built-in pub_* methods for state updates instead of 
+
+    **IMPORTANT**: Use built-in pub_* methods for state updates instead of
     manually publishing to topics. This provides better IDE support and consistency.
     """
 

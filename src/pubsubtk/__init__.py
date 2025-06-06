@@ -3,7 +3,7 @@
 """PubSubTk パッケージの主要クラスを公開する初期化モジュール。"""
 
 from .app import ThemedApplication, TkApplication
-from .core import enable_pubsub_debug_logging, disable_pubsub_debug_logging
+from .core import disable_pubsub_debug_logging, enable_pubsub_debug_logging
 from .processor import ProcessorBase
 from .store import Store, get_store
 from .topic import AutoNamedTopic

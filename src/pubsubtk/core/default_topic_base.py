@@ -16,18 +16,18 @@ from pubsubtk.topic.topics import (
 if TYPE_CHECKING:
     # 型チェック時（mypy や IDE 補完時）のみ読み込む
     from pubsubtk.processor.processor_base import ProcessorBase
-    from pubsubtk.ui.types import ContainerComponentType, ComponentType
+    from pubsubtk.ui.types import ComponentType, ContainerComponentType
 
 
 class PubSubDefaultTopicBase(PubSubBase):
     """
     Built-in convenience methods for common PubSub operations.
-    
+
     **IMPORTANT**: Container and Processor components should use these built-in methods
     instead of manually publishing to DefaultTopics. These methods are designed for
     ease of use and provide better IDE support.
     """
-    
+
     def pub_switch_container(
         self,
         cls: ContainerComponentType,
@@ -66,7 +66,7 @@ class PubSubDefaultTopicBase(PubSubBase):
             DefaultNavigateTopic.SWITCH_SLOT,
             slot_name=slot_name,
             cls=cls,
-            kwargs=kwargs
+            kwargs=kwargs,
         )
 
     def pub_open_subwindow(
@@ -176,7 +176,7 @@ class PubSubDefaultTopicBase(PubSubBase):
             state_path (str): 監視する状態のパス（例: "user.name", "items[2].value"）
             handler (Callable[[Any, Any], None]): 変更時に呼び出される関数。
                 old_valueとnew_valueの2引数を取る
-        
+
         Note:
             **RECOMMENDED**: Use store.state proxy for consistent path specification:
             `self.sub_state_changed(str(self.store.state.user.name), self.on_name_changed)`
@@ -195,7 +195,7 @@ class PubSubDefaultTopicBase(PubSubBase):
             state_path (str): 監視するリスト状態のパス（例: "items", "user.tasks"）
             handler (Callable[[Any, int], None]): 要素追加時に呼び出される関数。
                 追加されたアイテムとそのインデックスを引数に取る
-        
+
         Note:
             **RECOMMENDED**: Use store.state proxy for consistent path specification:
             `self.sub_state_added(str(self.store.state.items), self.on_item_added)`
