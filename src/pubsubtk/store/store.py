@@ -1,6 +1,10 @@
 # store.py - アプリケーション状態を管理するクラス
 
-"""Pydantic モデルを用いた型安全な状態管理を提供します。"""
+"""
+src/pubsubtk/store/store.py
+
+Pydantic モデルを用いた型安全な状態管理を提供します。
+"""
 
 from typing import Any, Generic, Optional, Type, TypeVar, cast
 
@@ -62,8 +66,7 @@ class Store(PubSubBase, Generic[TState]):
 
     - Pydanticモデルを状態として保持し、状態操作を提供
     - get_current_state()で状態のディープコピーを取得
-    - update_state()/add_to_list()で状態を更新し、PubSubで通知
-    - create_partial_state_updater()で部分更新用関数を生成
+    - update_state()/add_to_list()/add_to_dict()で状態を更新し、PubSubで通知
     - `store.state.count` のようなパスプロキシを使うことで、
       `store.update_state(store.state.count, 1)` のようにIDEの「定義へ移動」や補完機能を活用しつつ、
       状態更新のパスを安全・明示的に指定できる（従来の文字列パス指定の弱点を解消）
@@ -84,6 +87,7 @@ class Store(PubSubBase, Generic[TState]):
     def setup_subscriptions(self):
         self.subscribe(DefaultUpdateTopic.UPDATE_STATE, self.update_state)
         self.subscribe(DefaultUpdateTopic.ADD_TO_LIST, self.add_to_list)
+        self.subscribe(DefaultUpdateTopic.ADD_TO_DICT, self.add_to_dict)
 
     @property
     def state(self) -> TState:
@@ -143,6 +147,30 @@ class Store(PubSubBase, Generic[TState]):
             index=index,
         )
 
+    def add_to_dict(self, state_path: str, key: str, value: Any) -> None:
+        """辞書属性に要素を追加し、追加通知を送信する。
+
+        Args:
+            state_path: 追加先となる辞書の属性パス。
+            key: 追加するキー。
+            value: 追加する値。
+        """
+        target_obj, attr_name, current_dict = self._resolve_path(str(state_path))
+
+        if not isinstance(current_dict, dict):
+            raise TypeError(f"Property at '{state_path}' is not a dict")
+
+        new_dict = current_dict.copy()
+        new_dict[key] = value
+
+        self._validate_and_set_value(target_obj, attr_name, new_dict)
+
+        pub.sendMessage(
+            f"{DefaultUpdateTopic.DICT_ADDED}.{state_path}",
+            key=key,
+            value=value,
+        )
+
     def _resolve_path(self, path: str) -> tuple[Any, str, Any]:
         """
         属性パスを解決し、対象オブジェクト・属性名・現在値を返す。
@@ -197,21 +225,6 @@ class Store(PubSubBase, Generic[TState]):
         # 通常の属性設定
         setattr(target_obj, attr_name, new_value)
 
-    def create_partial_state_updater(self, base_path: str):
-        """
-        指定パス以下の部分更新用関数を生成する。
-
-        Args:
-            base_path: 基準パス
-        Returns:
-            サブパスと値を受けてupdate_stateする関数
-        """
-
-        def updater(sub_path: str, value: Any):
-            full_path = f"{base_path}.{sub_path}" if base_path else sub_path
-            self.update_state(full_path, value)
-
-        return updater
 
 
 # 実体としてはどんな State 型でも格納できるので Any

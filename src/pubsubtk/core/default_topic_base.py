@@ -1,6 +1,10 @@
 # default_topic_base.py - デフォルトトピック操作をまとめた基底クラス
 
-"""主要な PubSub トピックに対する便利メソッドを提供します。"""
+"""
+src/pubsubtk/core/default_topic_base.py
+
+主要な PubSub トピックに対する便利メソッドを提供します。
+"""
 
 from __future__ import annotations
 
@@ -139,6 +143,25 @@ class PubSubDefaultTopicBase(PubSubBase):
             DefaultUpdateTopic.ADD_TO_LIST, state_path=str(state_path), item=item
         )
 
+    def pub_add_to_dict(self, state_path: str, key: str, value: Any) -> None:
+        """Storeの状態(辞書)に要素を追加するPubSubメッセージを送信する。
+
+        Args:
+            state_path: 要素を追加する辞書の状態パス。
+            key: 追加するキー。
+            value: 追加する値。
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_add_to_dict(str(self.store.state.mapping), "k", v)`
+        """
+        self.publish(
+            DefaultUpdateTopic.ADD_TO_DICT,
+            state_path=str(state_path),
+            key=key,
+            value=value,
+        )
+
     def pub_register_processor(
         self,
         proc: Type[ProcessorBase],
@@ -201,3 +224,23 @@ class PubSubDefaultTopicBase(PubSubBase):
             `self.sub_state_added(str(self.store.state.items), self.on_item_added)`
         """
         self.subscribe(f"{DefaultUpdateTopic.STATE_ADDED}.{str(state_path)}", handler)
+
+    def sub_dict_item_added(
+        self, state_path: str, handler: Callable[[str, Any], None]
+    ) -> None:
+        """辞書に要素が追加されたときの通知を購読する。
+
+        ハンドラー関数には、キーと値が渡されます。
+
+        Args:
+            state_path: 監視する辞書状態のパス。
+            handler: 追加されたキーと値を引数に取る関数。
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for consistent path specification:
+            `self.sub_dict_item_added(str(self.store.state.mapping), self.on_added)`
+        """
+        self.subscribe(
+            f"{DefaultUpdateTopic.DICT_ADDED}.{str(state_path)}",
+            handler,
+        )

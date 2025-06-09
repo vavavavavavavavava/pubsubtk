@@ -1,6 +1,10 @@
 # topics.py - PubSub トピック列挙型の定義
 
-"""アプリケーションで使用する PubSub トピック列挙型を提供します。"""
+"""
+src/pubsubtk/topic/topics.py
+
+アプリケーションで使用する PubSub トピック列挙型を提供します。
+"""
 
 from enum import StrEnum, auto
 
@@ -46,8 +50,10 @@ class DefaultUpdateTopic(AutoNamedTopic):
 
     UPDATE_STATE = auto()
     ADD_TO_LIST = auto()
+    ADD_TO_DICT = auto()
     STATE_CHANGED = auto()
     STATE_ADDED = auto()
+    DICT_ADDED = auto()
 
 
 class DefaultProcessorTopic(AutoNamedTopic):
