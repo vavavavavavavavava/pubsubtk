@@ -104,10 +104,12 @@ from tkinter import ttk
 | `pub_close_all_subwindows()`              | サブウィンドウをすべて閉じる                        | Container / Processor |
 | `pub_update_state(path, value)`           | 任意パスの状態を型安全に更新                        | Processor / Container |
 | `pub_add_to_list(path, item)`             | リスト要素を型安全に追加                          | Processor / Container |
+| `pub_add_to_dict(path, key, value)`       | 辞書要素を型安全に追加                        | Processor / Container |
 | `pub_registor_processor(cls, name)`       | Processor を動的に登録                      | Processor             |
 | `pub_delete_processor(name)`              | Processor を削除                         | Processor             |
 | `sub_state_changed(path, handler)`        | 指定パスの値変更を購読                           | Container             |
 | `sub_state_added(path, handler)`          | リストへの要素追加を購読                          | Container             |
+| `sub_dict_item_added(path, handler)`          | 辞書への要素追加を購読                | Container             |
 | `register_handler(event, cb)`             | PresentationalコンポーネントでViewイベントのハンドラ登録 | Container             |
 | `trigger_event(event, **kwargs)`          | View→Containerへ任意イベント送出               | Presentational        |
 
@@ -710,6 +712,26 @@ class PubSubDefaultTopicBase(PubSubBase):
             DefaultUpdateTopic.ADD_TO_LIST, state_path=str(state_path), item=item
         )
 
+    def pub_add_to_dict(self, state_path: str, key: str, value: Any) -> None:
+        """
+        Storeの状態（辞書）に要素を追加するPubSubメッセージを送信する。
+
+        Args:
+            state_path (str): 要素を追加する辞書の状態パス（例: "mapping"）
+            key (str): 追加するキー
+            value (Any): 追加する値
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_add_to_dict(str(self.store.state.mapping), "k", value)`
+        """
+        self.publish(
+            DefaultUpdateTopic.ADD_TO_DICT,
+            state_path=str(state_path),
+            key=key,
+            value=value,
+        )
+
     def pub_register_processor(
         self,
         proc: Type[ProcessorBase],
@@ -772,6 +794,26 @@ class PubSubDefaultTopicBase(PubSubBase):
             `self.sub_state_added(str(self.store.state.items), self.on_item_added)`
         """
         self.subscribe(f"{DefaultUpdateTopic.STATE_ADDED}.{str(state_path)}", handler)
+
+    def sub_dict_item_added(
+        self, state_path: str, handler: Callable[[str, Any], None]
+    ) -> None:
+        """辞書に要素が追加されたときの通知を購読する。
+
+        ハンドラー関数には、キーと値が渡されます。
+
+        Args:
+            state_path: 監視する辞書状態のパス。
+            handler: 追加されたキーと値を引数に取る関数。
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for consistent path specification:
+            `self.sub_dict_item_added(str(self.store.state.mapping), self.on_added)`
+        """
+        self.subscribe(
+            f"{DefaultUpdateTopic.DICT_ADDED}.{str(state_path)}",
+            handler,
+        )
 
 ```
 
@@ -911,8 +953,7 @@ class Store(PubSubBase, Generic[TState]):
 
     - Pydanticモデルを状態として保持し、状態操作を提供
     - get_current_state()で状態のディープコピーを取得
-    - update_state()/add_to_list()で状態を更新し、PubSubで通知
-    - create_partial_state_updater()で部分更新用関数を生成
+    - update_state()/add_to_list()/add_to_dict()で状態を更新し、PubSubで通知
     - `store.state.count` のようなパスプロキシを使うことで、
       `store.update_state(store.state.count, 1)` のようにIDEの「定義へ移動」や補完機能を活用しつつ、
       状態更新のパスを安全・明示的に指定できる（従来の文字列パス指定の弱点を解消）
@@ -992,6 +1033,30 @@ class Store(PubSubBase, Generic[TState]):
             index=index,
         )
 
+    def add_to_dict(self, state_path: str, key: str, value: Any) -> None:
+        """辞書属性に要素を追加し、追加通知を送信する。
+
+        Args:
+            state_path: 追加先となる辞書の属性パス。
+            key: 追加するキー。
+            value: 追加する値。
+        """
+        target_obj, attr_name, current_dict = self._resolve_path(str(state_path))
+
+        if not isinstance(current_dict, dict):
+            raise TypeError(f"Property at '{state_path}' is not a dict")
+
+        new_dict = current_dict.copy()
+        new_dict[key] = value
+
+        self._validate_and_set_value(target_obj, attr_name, new_dict)
+
+        pub.sendMessage(
+            f"{DefaultUpdateTopic.DICT_ADDED}.{state_path}",
+            key=key,
+            value=value,
+        )
+
     def _resolve_path(self, path: str) -> tuple[Any, str, Any]:
         """
         属性パスを解決し、対象オブジェクト・属性名・現在値を返す。
@@ -1046,21 +1111,6 @@ class Store(PubSubBase, Generic[TState]):
         # 通常の属性設定
         setattr(target_obj, attr_name, new_value)
 
-    def create_partial_state_updater(self, base_path: str):
-        """
-        指定パス以下の部分更新用関数を生成する。
-
-        Args:
-            base_path: 基準パス
-        Returns:
-            サブパスと値を受けてupdate_stateする関数
-        """
-
-        def updater(sub_path: str, value: Any):
-            full_path = f"{base_path}.{sub_path}" if base_path else sub_path
-            self.update_state(full_path, value)
-
-        return updater
 
 
 # 実体としてはどんな State 型でも格納できるので Any

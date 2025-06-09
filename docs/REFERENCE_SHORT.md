@@ -88,10 +88,12 @@ from tkinter import ttk
 | `pub_close_all_subwindows()`              | サブウィンドウをすべて閉じる                        | Container / Processor |
 | `pub_update_state(path, value)`           | 任意パスの状態を型安全に更新                        | Processor / Container |
 | `pub_add_to_list(path, item)`             | リスト要素を型安全に追加                          | Processor / Container |
+| `pub_add_to_dict(path, key, value)`       | 辞書要素を型安全に追加                | Processor / Container |
 | `pub_registor_processor(cls, name)`       | Processor を動的に登録                      | Processor             |
 | `pub_delete_processor(name)`              | Processor を削除                         | Processor             |
 | `sub_state_changed(path, handler)`        | 指定パスの値変更を購読                           | Container             |
 | `sub_state_added(path, handler)`          | リストへの要素追加を購読                          | Container             |
+| `sub_dict_item_added(path, handler)`      | 辞書への要素追加を購読                | Container             |
 | `register_handler(event, cb)`             | PresentationalコンポーネントでViewイベントのハンドラ登録 | Container             |
 | `trigger_event(event, **kwargs)`          | View→Containerへ任意イベント送出               | Presentational        |
 
@@ -140,6 +142,10 @@ class TodoContainer(ContainerComponentTk[AppState]):
     def add_todo(self):
         # 状態更新
         self.pub_add_to_list(self.store.state.todos, new_todo)
+
+    def add_setting(self, key, val):
+        # 辞書への要素追加
+        self.pub_add_to_dict(self.store.state.settings, key, val)
 ```
 
 **Presentational** - 純粋な表示、再利用可能な部品
