@@ -1,6 +1,8 @@
-# container_base.py - コンテナコンポーネントの基底クラス
+"""
+src/pubsubtk/ui/base/container_base.py
 
-"""状態連携可能な UI コンテナの基底クラスを定義します。"""
+状態連携可能な UI コンテナの基底クラスを定義します。
+"""
 
 import tkinter as tk
 from abc import ABC, abstractmethod
@@ -32,6 +34,13 @@ class ContainerMixin(PubSubDefaultTopicBase, ABC, Generic[TState]):
 
         Args:
             store: 使用する ``Store`` インスタンス。
+
+        Notes:
+            渡された ``*args`` と ``**kwargs`` は ``self.args`` / ``self.kwargs``
+            として保持されます。サブウィンドウを ``open_subwindow`` で開く場合は
+            ``win_id`` が ``self.kwargs`` に自動追加され、
+            ``pub_close_subwindow(self.kwargs["win_id"])`` として自身を閉じることが
+            できます。将来的に同様のデフォルト引数が増えるかもしれません。
         """
         self.args = args
         self.kwargs = kwargs

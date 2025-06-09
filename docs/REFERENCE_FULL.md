@@ -154,11 +154,17 @@ self.pub_update_state(f"todos.{index}", updated_todo)
 class TodoContainer(ContainerComponentTk[AppState]):
     def setup_subscriptions(self):
         self.sub_state_changed(self.store.state.todos, self.on_todos_changed)
-    
+
     def add_todo(self):
         # 状態更新
         self.pub_add_to_list(self.store.state.todos, new_todo)
 ```
+
+**備考:** コンポーネントの ``__init__`` では与えられた ``*args`` と ``**kwargs`` が
+``self.args`` / ``self.kwargs`` として保持されます。サブウィンドウを ``open_subwindow``
+で開く場合は ``win_id`` が ``self.kwargs`` に自動追加され、
+``pub_close_subwindow(self.kwargs["win_id"])`` で自身を閉じられます。今後も同様の
+デフォルト引数が追加される可能性があります。
 
 **Presentational** - 純粋な表示、再利用可能な部品
 
@@ -1537,9 +1543,11 @@ class ThemedApplication(ApplicationCommon, ThemedTk):
 #### `src/pubsubtk/ui/base/container_base.py`
 
 ```python
-# container_base.py - コンテナコンポーネントの基底クラス
+"""
+src/pubsubtk/ui/base/container_base.py
 
-"""状態連携可能な UI コンテナの基底クラスを定義します。"""
+状態連携可能な UI コンテナの基底クラスを定義します。
+"""
 
 import tkinter as tk
 from abc import ABC, abstractmethod
@@ -1571,6 +1579,13 @@ class ContainerMixin(PubSubDefaultTopicBase, ABC, Generic[TState]):
 
         Args:
             store: 使用する ``Store`` インスタンス。
+
+        Notes:
+            渡された ``*args`` と ``**kwargs`` は ``self.args`` / ``self.kwargs``
+            として保持されます。サブウィンドウを ``open_subwindow`` で開く場合は
+            ``win_id`` が ``self.kwargs`` に自動追加され、
+            ``pub_close_subwindow(self.kwargs["win_id"])`` として自身を閉じることが
+            できます。将来的に同様のデフォルト引数が増えるかもしれません。
         """
         self.args = args
         self.kwargs = kwargs
@@ -1645,9 +1660,11 @@ class ContainerComponentTtk(ContainerMixin[TState], ttk.Frame, Generic[TState]):
 #### `src/pubsubtk/ui/base/presentational_base.py`
 
 ```python
-# presentational_base.py - 表示専用コンポーネントの基底クラス
+"""
+src/pubsubtk/ui/base/presentational_base.py
 
-"""イベント発火機能を備えた表示専用 UI コンポーネント用基底クラス。"""
+イベント発火機能を備えた表示専用 UI コンポーネント用基底クラス。
+"""
 
 import tkinter as tk
 from abc import ABC, abstractmethod
@@ -1663,7 +1680,14 @@ class PresentationalMixin(ABC):
     """
 
     def __init__(self, *args, **kwargs):
-        """Mixin の初期化処理。"""
+        """Mixin の初期化処理。
+
+        Notes:
+            渡された ``*args`` と ``**kwargs`` は ``self.args`` / ``self.kwargs``
+            として保持されます。サブウィンドウで使用する場合は ``open_subwindow``
+            が ``win_id`` を自動付与するため、 ``self.kwargs["win_id"]`` を利用して
+            自身を閉じられます。今後同様のデフォルト引数が追加される可能性があります。
+        """
 
         self.args = args
         self.kwargs = kwargs

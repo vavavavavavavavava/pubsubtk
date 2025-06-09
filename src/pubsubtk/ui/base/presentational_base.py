@@ -1,6 +1,8 @@
-# presentational_base.py - 表示専用コンポーネントの基底クラス
+"""
+src/pubsubtk/ui/base/presentational_base.py
 
-"""イベント発火機能を備えた表示専用 UI コンポーネント用基底クラス。"""
+イベント発火機能を備えた表示専用 UI コンポーネント用基底クラス。
+"""
 
 import tkinter as tk
 from abc import ABC, abstractmethod
@@ -16,7 +18,14 @@ class PresentationalMixin(ABC):
     """
 
     def __init__(self, *args, **kwargs):
-        """Mixin の初期化処理。"""
+        """Mixin の初期化処理。
+
+        Notes:
+            渡された ``*args`` と ``**kwargs`` は ``self.args`` / ``self.kwargs``
+            として保持されます。サブウィンドウで使用する場合は ``open_subwindow``
+            が ``win_id`` を自動付与するため、 ``self.kwargs["win_id"]`` を利用して
+            自身を閉じられます。今後同様のデフォルト引数が追加される可能性があります。
+        """
 
         self.args = args
         self.kwargs = kwargs

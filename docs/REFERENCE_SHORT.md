@@ -138,7 +138,7 @@ self.pub_update_state(f"todos.{index}", updated_todo)
 class TodoContainer(ContainerComponentTk[AppState]):
     def setup_subscriptions(self):
         self.sub_state_changed(self.store.state.todos, self.on_todos_changed)
-    
+
     def add_todo(self):
         # 状態更新
         self.pub_add_to_list(self.store.state.todos, new_todo)
@@ -147,6 +147,12 @@ class TodoContainer(ContainerComponentTk[AppState]):
         # 辞書への要素追加
         self.pub_add_to_dict(self.store.state.settings, key, val)
 ```
+
+**備考:** コンポーネントの ``__init__`` では与えられた ``*args`` と ``**kwargs`` が
+``self.args`` / ``self.kwargs`` として保持されます。サブウィンドウを ``open_subwindow``
+で開く場合は ``win_id`` が ``self.kwargs`` に自動追加され、
+``pub_close_subwindow(self.kwargs["win_id"])`` で自身を閉じられます。今後も同様の
+デフォルト引数が追加される可能性があります。
 
 **Presentational** - 純粋な表示、再利用可能な部品
 
