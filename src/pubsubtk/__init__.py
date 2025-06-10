@@ -15,6 +15,7 @@ from .ui import (
     TemplateComponentTk,
     TemplateComponentTtk,
 )
+from .utils import make_async, make_async_task
 
 __all__ = [
     # app
@@ -37,4 +38,7 @@ __all__ = [
     # debug
     "enable_pubsub_debug_logging",
     "disable_pubsub_debug_logging",
+    # utils
+    "make_async_task",
+    "make_async",
 ]

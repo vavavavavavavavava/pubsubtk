@@ -6,20 +6,20 @@ tests/sample_app/main.py
 
 import asyncio
 import tkinter as tk
-from tkinter import messagebox
 from enum import auto
+from tkinter import messagebox
 
 from pydantic import BaseModel
 
 from pubsubtk import (
+    AutoNamedTopic,
     ContainerComponentTk,
     PresentationalComponentTk,
     ProcessorBase,
     TemplateComponentTk,
     TkApplication,
+    make_async_task,
 )
-from pubsubtk.topic.topics import AutoNamedTopic
-from pubsubtk.utils import make_async_task
 
 
 # カスタムトピック定義
@@ -85,6 +85,7 @@ class HeaderContainer(ContainerComponentTk[AppState]):
 # Containerコンポーネント（メインカウンター） - 従来のsub_state_changedも併用
 class CounterContainer(ContainerComponentTk[AppState]):
     """カウンター表示とアイテム削除を管理するコンテナ。"""
+
     def setup_ui(self):
         # カウンター表示
         self.counter_label = tk.Label(self, text="0", font=("Arial", 32))
@@ -93,7 +94,7 @@ class CounterContainer(ContainerComponentTk[AppState]):
         # アイテムリスト
         self.item_list = tk.Listbox(self, height=5)
         for i in range(5):
-            self.item_list.insert(tk.END, f"Item {i+1}")
+            self.item_list.insert(tk.END, f"Item {i + 1}")
         self.item_list.pack(pady=10)
 
         # ボタン
@@ -113,11 +114,13 @@ class CounterContainer(ContainerComponentTk[AppState]):
     def setup_subscriptions(self):
         # 2つの方法を比較
         # 1. 従来の方法（old_value, new_valueを受け取るが使わない）
-        self.sub_state_changed(str(self.store.state.counter), self.on_counter_changed_old_way)
-        
+        self.sub_state_changed(
+            str(self.store.state.counter), self.on_counter_changed_old_way
+        )
+
         # 2. 新しい方法（引数なしでシンプル）
         # self.sub_for_refresh(str(self.store.state.counter), self.on_counter_refresh_new_way)
-        
+
         self.subscribe(AppTopic.MILESTONE, self.on_milestone)
 
     def refresh_from_state(self):
@@ -157,7 +160,7 @@ class CounterContainer(ContainerComponentTk[AppState]):
         self.counter_label.config(text=str(state.counter))
 
     def on_milestone(self, value: int):
-        tk.messagebox.showinfo("マイルストーン!", f"{value} に到達しました！")
+        messagebox.showinfo("マイルストーン!", f"{value} に到達しました！")
 
 
 # Processor（ビジネスロジック）
