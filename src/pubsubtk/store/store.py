@@ -80,7 +80,7 @@ class Store(PubSubBase, Generic[TState]):
         """
         self._state_class = initial_state_class
         self._state = initial_state_class()
-        
+
         # PubSubBase.__init__()を呼び出して購読設定を有効化
         super().__init__()
 
@@ -102,6 +102,30 @@ class Store(PubSubBase, Generic[TState]):
         """
         return self._state.model_copy(deep=True)
 
+    def replace_state(self, new_state: TState) -> None:
+        """状態オブジェクト全体を置き換え、全フィールドに変更通知を送信する。
+
+        Args:
+            new_state: 新しい状態オブジェクト。
+        """
+        if not isinstance(new_state, self._state_class):
+            raise TypeError(f"new_state must be an instance of {self._state_class}")
+
+        old_state = self._state
+        self._state = new_state.model_copy(deep=True)
+
+        # 全フィールドに変更通知を送信
+        for field_name in self._state_class.model_fields.keys():
+            old_value = getattr(old_state, field_name)
+            new_value = getattr(self._state, field_name)
+
+            self.publish(
+                f"{DefaultUpdateTopic.STATE_CHANGED}.{field_name}",
+                old_value=old_value,
+                new_value=new_value,
+            )
+            self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{field_name}")
+
     def update_state(self, state_path: str, new_value: Any) -> None:
         """指定パスの属性を更新し、変更通知を送信する。
 
@@ -120,7 +144,7 @@ class Store(PubSubBase, Generic[TState]):
             old_value=old_value,
             new_value=new_value,
         )
-        
+
         # シンプルな更新通知（引数なし）
         self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
@@ -142,7 +166,7 @@ class Store(PubSubBase, Generic[TState]):
 
         # 新しいリストで更新
         self._validate_and_set_value(target_obj, attr_name, new_list)
-        
+
         index = len(new_list) - 1
 
         pub.sendMessage(
@@ -150,7 +174,7 @@ class Store(PubSubBase, Generic[TState]):
             item=item,
             index=index,
         )
-        
+
         # リスト追加でも更新通知を送信
         self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
@@ -177,7 +201,7 @@ class Store(PubSubBase, Generic[TState]):
             key=key,
             value=value,
         )
-        
+
         # 辞書追加でも更新通知を送信
         self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
@@ -218,7 +242,7 @@ class Store(PubSubBase, Generic[TState]):
         """属性値を型検証してから設定する。"""
         # Pydanticモデルの場合、フィールドの型情報を取得
         if isinstance(target_obj, BaseModel):
-            model_fields = target_obj.model_fields
+            model_fields = target_obj.__class__.model_fields
 
             if attr_name in model_fields:
                 field_info = model_fields[attr_name]
@@ -234,7 +258,6 @@ class Store(PubSubBase, Generic[TState]):
 
         # 通常の属性設定
         setattr(target_obj, attr_name, new_value)
-
 
 
 # 実体としてはどんな State 型でも格納できるので Any

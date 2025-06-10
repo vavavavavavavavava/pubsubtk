@@ -107,6 +107,14 @@ class PubSubDefaultTopicBase(PubSubBase):
         """すべてのサブウィンドウを閉じるPubSubメッセージを送信する。"""
         self.publish(DefaultNavigateTopic.CLOSE_ALL_SUBWINDOWS)
 
+    def pub_replace_state(self, new_state: Any) -> None:
+        """状態オブジェクト全体を置き換えるPubSubメッセージを送信する。
+
+        Args:
+            new_state: 新しい状態オブジェクト。
+        """
+        self.publish(DefaultUpdateTopic.REPLACE_STATE, new_state=new_state)
+
     def pub_update_state(self, state_path: str, new_value: Any) -> None:
         """
         Storeの状態を更新するPubSubメッセージを送信する。
@@ -206,9 +214,7 @@ class PubSubDefaultTopicBase(PubSubBase):
         """
         self.subscribe(f"{DefaultUpdateTopic.STATE_CHANGED}.{str(state_path)}", handler)
 
-    def sub_for_refresh(
-        self, state_path: str, handler: Callable[[], None]
-    ) -> None:
+    def sub_for_refresh(self, state_path: str, handler: Callable[[], None]) -> None:
         """
         状態が更新されたときにUI再描画用のシンプルな通知を購読する。
 
@@ -222,7 +228,7 @@ class PubSubDefaultTopicBase(PubSubBase):
         Note:
             **RECOMMENDED**: Use store.state proxy for consistent path specification:
             `self.sub_for_refresh(str(self.store.state.user.name), self.refresh_ui)`
-            
+
             このメソッドは、変更内容に関係なく「状態が変わったからUI更新」という
             パターンに最適です。refresh_from_state()と同じロジックを使い回せます。
         """

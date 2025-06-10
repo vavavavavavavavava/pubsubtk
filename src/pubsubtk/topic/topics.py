@@ -51,9 +51,10 @@ class DefaultUpdateTopic(AutoNamedTopic):
     UPDATE_STATE = auto()
     ADD_TO_LIST = auto()
     ADD_TO_DICT = auto()
-    STATE_CHANGED = auto()  # old_value, new_valueを引数に取る詳細通知
-    STATE_UPDATED = auto()  # 引数なしのシンプルな更新通知
+    REPLACE_STATE = auto()
+    STATE_CHANGED = auto()
     STATE_ADDED = auto()
+    STATE_UPDATED = auto()
     DICT_ADDED = auto()
 
 
