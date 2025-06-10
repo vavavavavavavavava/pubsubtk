@@ -1,4 +1,12 @@
+"""
+tests/sample_app/main.py
+
+簡易デモアプリケーション
+"""
+
+import asyncio
 import tkinter as tk
+from tkinter import messagebox
 from enum import auto
 
 from pydantic import BaseModel
@@ -11,6 +19,7 @@ from pubsubtk import (
     TkApplication,
 )
 from pubsubtk.topic.topics import AutoNamedTopic
+from pubsubtk.utils import make_async_task
 
 
 # カスタムトピック定義
@@ -75,10 +84,17 @@ class HeaderContainer(ContainerComponentTk[AppState]):
 
 # Containerコンポーネント（メインカウンター） - 従来のsub_state_changedも併用
 class CounterContainer(ContainerComponentTk[AppState]):
+    """カウンター表示とアイテム削除を管理するコンテナ。"""
     def setup_ui(self):
         # カウンター表示
         self.counter_label = tk.Label(self, text="0", font=("Arial", 32))
         self.counter_label.pack(pady=30)
+
+        # アイテムリスト
+        self.item_list = tk.Listbox(self, height=5)
+        for i in range(5):
+            self.item_list.insert(tk.END, f"Item {i+1}")
+        self.item_list.pack(pady=10)
 
         # ボタン
         btn_frame = tk.Frame(self)
@@ -89,6 +105,9 @@ class CounterContainer(ContainerComponentTk[AppState]):
         ).pack(side=tk.LEFT, padx=10)
         tk.Button(
             btn_frame, text="リセット", command=self.reset, font=("Arial", 12)
+        ).pack(side=tk.LEFT, padx=10)
+        tk.Button(
+            btn_frame, text="削除", command=self.delete_selected, font=("Arial", 12)
         ).pack(side=tk.LEFT, padx=10)
 
     def setup_subscriptions(self):
@@ -112,6 +131,21 @@ class CounterContainer(ContainerComponentTk[AppState]):
     def reset(self):
         # カスタムトピックでリセット通知
         self.publish(AppTopic.RESET)
+
+    def delete_selected(self) -> None:
+        """選択アイテムの削除処理を開始する。"""
+        self.confirm_delete()
+
+    @make_async_task
+    async def confirm_delete(self) -> None:
+        """削除確認後にリストからアイテムを除去する。"""
+
+        await asyncio.sleep(0)
+        selection = self.item_list.curselection()
+        if not selection:
+            return
+        if messagebox.askyesno("確認", "選択項目を削除しますか？"):
+            self.item_list.delete(selection[0])
 
     def on_counter_changed_old_way(self, old_value, new_value):
         """従来の方法 - old_value, new_valueを受け取るが実際は new_value しか使わない"""
@@ -163,4 +197,4 @@ if __name__ == "__main__":
     app.pub_switch_slot("main", CounterContainer)
 
     # 起動
-    app.run()
+    app.run(use_async=True)

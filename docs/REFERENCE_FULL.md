@@ -283,9 +283,10 @@ self.publish(DefaultUpdateTopic.UPDATE_STATE, state_path="count", new_value=42)
 ## 実践例
 
 ### 全機能を活用したシンプルなカウンターアプリ
-
 ```python
+import asyncio
 import tkinter as tk
+from tkinter import messagebox
 from enum import auto
 
 from pydantic import BaseModel
@@ -298,7 +299,7 @@ from pubsubtk import (
     TkApplication,
 )
 from pubsubtk.topic.topics import AutoNamedTopic
-
+from pubsubtk.utils import make_async_task
 
 # カスタムトピック定義
 class AppTopic(AutoNamedTopic):
@@ -315,11 +316,9 @@ class AppState(BaseModel):
 # テンプレート定義
 class AppTemplate(TemplateComponentTk[AppState]):
     def define_slots(self):
-        # ヘッダー
         self.header = tk.Frame(self, height=50, bg="lightblue")
         self.header.pack(fill=tk.X)
 
-        # メインコンテンツ
         self.main = tk.Frame(self)
         self.main.pack(fill=tk.BOTH, expand=True)
 
@@ -348,24 +347,29 @@ class HeaderContainer(ContainerComponentTk[AppState]):
         self.header_view.pack(fill=tk.BOTH, expand=True)
 
     def setup_subscriptions(self):
-        self.sub_state_changed(self.store.state.total_clicks, self.update_header)
+        self.sub_for_refresh(str(self.store.state.total_clicks), self.refresh_header)
 
     def refresh_from_state(self):
-        self.update_header(None, None)
+        self.refresh_header()
 
-    def update_header(self, old_value, new_value):
+    def refresh_header(self):
         state = self.store.get_current_state()
         self.header_view.update_data(state.total_clicks)
 
 
-# Containerコンポーネント（メインカウンター）
+# Containerコンポーネント（メインカウンター） - asyncユーティリティ利用
 class CounterContainer(ContainerComponentTk[AppState]):
+    """カウンター表示とアイテム削除を管理するコンテナ。"""
+
     def setup_ui(self):
-        # カウンター表示
         self.counter_label = tk.Label(self, text="0", font=("Arial", 32))
         self.counter_label.pack(pady=30)
 
-        # ボタン
+        self.item_list = tk.Listbox(self, height=5)
+        for i in range(5):
+            self.item_list.insert(tk.END, f"Item {i+1}")
+        self.item_list.pack(pady=10)
+
         btn_frame = tk.Frame(self)
         btn_frame.pack(pady=20)
 
@@ -375,9 +379,12 @@ class CounterContainer(ContainerComponentTk[AppState]):
         tk.Button(
             btn_frame, text="リセット", command=self.reset, font=("Arial", 12)
         ).pack(side=tk.LEFT, padx=10)
+        tk.Button(
+            btn_frame, text="削除", command=self.delete_selected, font=("Arial", 12)
+        ).pack(side=tk.LEFT, padx=10)
 
     def setup_subscriptions(self):
-        self.sub_state_changed(self.store.state.counter, self.on_counter_changed)
+        self.sub_state_changed(str(self.store.state.counter), self.on_counter_changed_old_way)
         self.subscribe(AppTopic.MILESTONE, self.on_milestone)
 
     def refresh_from_state(self):
@@ -385,18 +392,28 @@ class CounterContainer(ContainerComponentTk[AppState]):
         self.counter_label.config(text=str(state.counter))
 
     def increment(self):
-        # カスタムトピックでインクリメント通知
         self.publish(AppTopic.INCREMENT)
 
     def reset(self):
-        # カスタムトピックでリセット通知
         self.publish(AppTopic.RESET)
 
-    def on_counter_changed(self, old_value, new_value):
+    def delete_selected(self) -> None:
+        self.confirm_delete()
+
+    @make_async_task
+    async def confirm_delete(self) -> None:
+        await asyncio.sleep(0)
+        selection = self.item_list.curselection()
+        if not selection:
+            return
+        if messagebox.askyesno("確認", "選択項目を削除しますか？"):
+            self.item_list.delete(selection[0])
+
+    def on_counter_changed_old_way(self, old_value, new_value):
         self.counter_label.config(text=str(new_value))
 
     def on_milestone(self, value: int):
-        tk.messagebox.showinfo("マイルストーン!", f"{value} に到達しました！")
+        messagebox.showinfo("マイルストーン!", f"{value} に到達しました！")
 
 
 # Processor（ビジネスロジック）
@@ -410,34 +427,28 @@ class CounterProcessor(ProcessorBase[AppState]):
         new_counter = state.counter + 1
         new_total = state.total_clicks + 1
 
-        # StateProxyで型安全な状態更新
-        self.pub_update_state(self.store.state.counter, new_counter)
-        self.pub_update_state(self.store.state.total_clicks, new_total)
+        self.pub_update_state(str(self.store.state.counter), new_counter)
+        self.pub_update_state(str(self.store.state.total_clicks), new_total)
 
-        # マイルストーン判定
         if new_counter % 10 == 0:
             self.publish(AppTopic.MILESTONE, value=new_counter)
 
     def handle_reset(self):
-        # 便利メソッドで状態リセット
-        self.pub_update_state(self.store.state.counter, 0)
+        self.pub_update_state(str(self.store.state.counter), 0)
 
 
 if __name__ == "__main__":
     app = TkApplication(AppState, title="PubSubTk Simple Demo", geometry="400x300")
-    # Processor登録
     app.pub_register_processor(CounterProcessor)
 
-    # テンプレート設定
     app.set_template(AppTemplate)
 
-    # 各スロットにコンポーネント配置
     app.pub_switch_slot("header", HeaderContainer)
     app.pub_switch_slot("main", CounterContainer)
 
-    # 起動
-    app.run()
+    app.run(use_async=True)
 ```
+
 
 ---
 
@@ -460,7 +471,6 @@ from pubsub import pub
 
 # PubSub専用のロガーを作成
 _pubsub_logger = logging.getLogger("pubsubtk.pubsub")
-
 
 class PubSubBase(ABC):
     """
@@ -538,7 +548,6 @@ class PubSubBase(ABC):
         """
         self.unsubscribe_all()
 
-
 # デバッグログを有効化するユーティリティ関数
 def enable_pubsub_debug_logging(level: int = logging.DEBUG) -> None:
     """
@@ -563,7 +572,6 @@ def enable_pubsub_debug_logging(level: int = logging.DEBUG) -> None:
         _pubsub_logger.addHandler(handler)
 
     _pubsub_logger.debug("PubSub debug logging enabled")
-
 
 def disable_pubsub_debug_logging() -> None:
     """
@@ -596,7 +604,6 @@ if TYPE_CHECKING:
     # 型チェック時（mypy や IDE 補完時）のみ読み込む
     from pubsubtk.processor.processor_base import ProcessorBase
     from pubsubtk.ui.types import ComponentType, ContainerComponentType
-
 
 class PubSubDefaultTopicBase(PubSubBase):
     """
@@ -834,7 +841,6 @@ class PubSubDefaultTopicBase(PubSubBase):
 
 from enum import StrEnum, auto
 
-
 class AutoNamedTopic(StrEnum):
     """
     Enumメンバー名を自動で小文字化し、クラス名のプレフィックス付き文字列を値とする列挙型。
@@ -856,7 +862,6 @@ class AutoNamedTopic(StrEnum):
     def __str__(self):
         return self.value
 
-
 class DefaultNavigateTopic(AutoNamedTopic):
     """
     標準的な画面遷移・ウィンドウ操作用のPubSubトピック列挙型。
@@ -868,7 +873,6 @@ class DefaultNavigateTopic(AutoNamedTopic):
     CLOSE_SUBWINDOW = auto()
     CLOSE_ALL_SUBWINDOWS = auto()
 
-
 class DefaultUpdateTopic(AutoNamedTopic):
     """
     標準的な状態更新通知用のPubSubトピック列挙型。
@@ -878,7 +882,6 @@ class DefaultUpdateTopic(AutoNamedTopic):
     ADD_TO_LIST = auto()
     STATE_CHANGED = auto()
     STATE_ADDED = auto()
-
 
 class DefaultProcessorTopic(AutoNamedTopic):
     """
@@ -908,7 +911,6 @@ from pubsubtk.core.pubsub_base import PubSubBase
 from pubsubtk.topic.topics import DefaultUpdateTopic
 
 TState = TypeVar("TState", bound=BaseModel)
-
 
 class StateProxy(Generic[TState]):
     """
@@ -951,7 +953,6 @@ class StateProxy(Generic[TState]):
         return f"{self._path}"
 
     __str__ = __repr__
-
 
 class Store(PubSubBase, Generic[TState]):
     """
@@ -1117,11 +1118,8 @@ class Store(PubSubBase, Generic[TState]):
         # 通常の属性設定
         setattr(target_obj, attr_name, new_value)
 
-
-
 # 実体としてはどんな State 型でも格納できるので Any
 _store: Optional[Store[Any]] = None
-
 
 def get_store(state_cls: Type[TState]) -> Store[TState]:
     """グローバルな ``Store`` インスタンスを取得する。
@@ -1190,7 +1188,6 @@ if TYPE_CHECKING:
 TState = TypeVar("TState", bound=BaseModel)
 P = TypeVar("P", bound=ProcessorBase)
 
-
 def _default_poll(loop: asyncio.AbstractEventLoop, root: tk.Tk, interval: int) -> None:
     """非同期イベントループを ``after`` で定期実行する補助関数。
 
@@ -1206,7 +1203,6 @@ def _default_poll(loop: asyncio.AbstractEventLoop, root: tk.Tk, interval: int) -
     except Exception:
         pass
     root.after(interval, _default_poll, loop, root, interval)
-
 
 class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
     """Tk/Ttk いずれのウィンドウクラスでも共通の機能を提供する Mixin."""
@@ -1484,7 +1480,6 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         self.close_all_subwindows()
         self.destroy()
 
-
 class TkApplication(ApplicationCommon, tk.Tk):
     def __init__(
         self,
@@ -1508,7 +1503,6 @@ class TkApplication(ApplicationCommon, tk.Tk):
         ApplicationCommon.__init__(self, state_cls)
         # now do your common window setup
         self.init_common(title, geometry)
-
 
 class ThemedApplication(ApplicationCommon, ThemedTk):
     def __init__(
@@ -1560,7 +1554,6 @@ from pubsubtk.core.default_topic_base import PubSubDefaultTopicBase
 from pubsubtk.store.store import Store
 
 TState = TypeVar("TState", bound=BaseModel)
-
 
 class ContainerMixin(PubSubDefaultTopicBase, ABC, Generic[TState]):
     """
@@ -1621,7 +1614,6 @@ class ContainerMixin(PubSubDefaultTopicBase, ABC, Generic[TState]):
         self.teardown()
         super().destroy()
 
-
 class ContainerComponentTk(ContainerMixin[TState], tk.Frame, Generic[TState]):
     """
     標準tk.FrameベースのPubSub連携コンテナ。
@@ -1637,7 +1629,6 @@ class ContainerComponentTk(ContainerMixin[TState], tk.Frame, Generic[TState]):
 
         tk.Frame.__init__(self, master=parent)
         ContainerMixin.__init__(self, store=store, *args, **kwargs)
-
 
 class ContainerComponentTtk(ContainerMixin[TState], ttk.Frame, Generic[TState]):
     """
@@ -1670,7 +1661,6 @@ import tkinter as tk
 from abc import ABC, abstractmethod
 from tkinter import ttk
 from typing import Any, Callable, Dict
-
 
 class PresentationalMixin(ABC):
     """
@@ -1710,7 +1700,6 @@ class PresentationalMixin(ABC):
         if handler := self._handlers.get(event_name):
             handler(**kwargs)
 
-
 # tk.Frame ベース の抽象クラス
 class PresentationalComponentTk(PresentationalMixin, tk.Frame):
     """
@@ -1722,7 +1711,6 @@ class PresentationalComponentTk(PresentationalMixin, tk.Frame):
 
         tk.Frame.__init__(self, master=parent)
         PresentationalMixin.__init__(self, *args, **kwargs)
-
 
 # ttk.Frame ベース の抽象クラス
 class PresentationalComponentTtk(PresentationalMixin, ttk.Frame):
@@ -1761,7 +1749,6 @@ if TYPE_CHECKING:
     from pubsubtk.ui.types import ComponentType
 
 TState = TypeVar("TState", bound=BaseModel)
-
 
 class TemplateMixin(ABC, Generic[TState]):
     """
@@ -1884,7 +1871,6 @@ class TemplateMixin(ABC, Generic[TState]):
         for slot_name in list(self._slot_contents.keys()):
             self.clear_slot(slot_name)
 
-
 class TemplateComponentTk(TemplateMixin[TState], tk.Frame, Generic[TState]):
     """
     標準tk.Frameベースのテンプレートコンポーネント。
@@ -1895,7 +1881,6 @@ class TemplateComponentTk(TemplateMixin[TState], tk.Frame, Generic[TState]):
 
         tk.Frame.__init__(self, master=parent)
         TemplateMixin.__init__(self, store=store, *args, **kwargs)
-
 
 class TemplateComponentTtk(TemplateMixin[TState], ttk.Frame, Generic[TState]):
     """
@@ -1927,7 +1912,6 @@ from pubsubtk.core.default_topic_base import PubSubDefaultTopicBase
 from pubsubtk.store.store import Store
 
 TState = TypeVar("TState", bound=BaseModel)
-
 
 class ProcessorBase(PubSubDefaultTopicBase, Generic[TState]):
     """Processor の基底クラス。"""
