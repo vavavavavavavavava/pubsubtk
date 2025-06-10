@@ -98,18 +98,20 @@ from tkinter import ttk
 | メソッド                                      | 説明・用途                                 | 主な利用層                 |
 | ----------------------------------------- | ------------------------------------- | --------------------- |
 | `pub_switch_container(cls, kwargs)`       | メイン画面（Container）を切り替える                | Container / Processor |
-| `pub_switch_slot(slot, cls, kwargs)`      | テンプレート内の任意スロットのコンポーネントを切り替え           | Container / Processor |
+| `pub_switch_slot(slot_name, cls, kwargs)` | テンプレート内の任意スロットのコンポーネントを切り替え           | Container / Processor |
 | `pub_open_subwindow(cls, win_id, kwargs)` | サブウィンドウを開く                            | Container / Processor |
 | `pub_close_subwindow(win_id)`             | 指定 ID のサブウィンドウを閉じる                    | Container / Processor |
 | `pub_close_all_subwindows()`              | サブウィンドウをすべて閉じる                        | Container / Processor |
-| `pub_update_state(path, value)`           | 任意パスの状態を型安全に更新                        | Processor / Container |
-| `pub_add_to_list(path, item)`             | リスト要素を型安全に追加                          | Processor / Container |
-| `pub_add_to_dict(path, key, value)`       | 辞書要素を型安全に追加                        | Processor / Container |
-| `pub_registor_processor(cls, name)`       | Processor を動的に登録                      | Processor             |
+| `pub_replace_state(new_state)`            | 状態オブジェクト全体を置き換える                      | Processor / Container |
+| `pub_update_state(state_path, new_value)` | 任意パスの状態を型安全に更新                        | Processor / Container |
+| `pub_add_to_list(state_path, item)`       | リスト要素を型安全に追加                          | Processor / Container |
+| `pub_add_to_dict(state_path, key, value)` | 辞書要素を型安全に追加                           | Processor / Container |
+| `pub_register_processor(proc, name)`      | Processor を動的に登録                      | Processor             |
 | `pub_delete_processor(name)`              | Processor を削除                         | Processor             |
-| `sub_state_changed(path, handler)`        | 指定パスの値変更を購読                           | Container             |
-| `sub_state_added(path, handler)`          | リストへの要素追加を購読                          | Container             |
-| `sub_dict_item_added(path, handler)`          | 辞書への要素追加を購読                | Container             |
+| `sub_state_changed(state_path, handler)`  | 指定パスの値変更を購読（old_value, new_value受信）   | Container             |
+| `sub_for_refresh(state_path, handler)`    | 状態更新時のUI再描画用シンプル通知を購読（引数なし）         | Container             |
+| `sub_state_added(state_path, handler)`    | リストへの要素追加を購読（item, index受信）         | Container             |
+| `sub_dict_item_added(state_path, handler)` | 辞書への要素追加を購読（key, value受信）            | Container             |
 | `register_handler(event, cb)`             | PresentationalコンポーネントでViewイベントのハンドラ登録 | Container             |
 | `trigger_event(event, **kwargs)`          | View→Containerへ任意イベント送出               | Presentational        |
 
@@ -283,6 +285,7 @@ self.publish(DefaultUpdateTopic.UPDATE_STATE, state_path="count", new_value=42)
 ## 実践例
 
 ### 全機能を活用したシンプルなカウンターアプリ
+
 ```python
 import asyncio
 import tkinter as tk
@@ -469,7 +472,6 @@ if __name__ == "__main__":
 
     app.run(use_async=True)
 ```
-
 
 ---
 

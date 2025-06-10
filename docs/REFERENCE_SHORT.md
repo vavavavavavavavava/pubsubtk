@@ -82,18 +82,20 @@ from tkinter import ttk
 | メソッド                                      | 説明・用途                                 | 主な利用層                 |
 | ----------------------------------------- | ------------------------------------- | --------------------- |
 | `pub_switch_container(cls, kwargs)`       | メイン画面（Container）を切り替える                | Container / Processor |
-| `pub_switch_slot(slot, cls, kwargs)`      | テンプレート内の任意スロットのコンポーネントを切り替え           | Container / Processor |
+| `pub_switch_slot(slot_name, cls, kwargs)` | テンプレート内の任意スロットのコンポーネントを切り替え           | Container / Processor |
 | `pub_open_subwindow(cls, win_id, kwargs)` | サブウィンドウを開く                            | Container / Processor |
 | `pub_close_subwindow(win_id)`             | 指定 ID のサブウィンドウを閉じる                    | Container / Processor |
 | `pub_close_all_subwindows()`              | サブウィンドウをすべて閉じる                        | Container / Processor |
-| `pub_update_state(path, value)`           | 任意パスの状態を型安全に更新                        | Processor / Container |
-| `pub_add_to_list(path, item)`             | リスト要素を型安全に追加                          | Processor / Container |
-| `pub_add_to_dict(path, key, value)`       | 辞書要素を型安全に追加                | Processor / Container |
-| `pub_registor_processor(cls, name)`       | Processor を動的に登録                      | Processor             |
+| `pub_replace_state(new_state)`            | 状態オブジェクト全体を置き換える                      | Processor / Container |
+| `pub_update_state(state_path, new_value)` | 任意パスの状態を型安全に更新                        | Processor / Container |
+| `pub_add_to_list(state_path, item)`       | リスト要素を型安全に追加                          | Processor / Container |
+| `pub_add_to_dict(state_path, key, value)` | 辞書要素を型安全に追加                           | Processor / Container |
+| `pub_register_processor(proc, name)`      | Processor を動的に登録                      | Processor             |
 | `pub_delete_processor(name)`              | Processor を削除                         | Processor             |
-| `sub_state_changed(path, handler)`        | 指定パスの値変更を購読                           | Container             |
-| `sub_state_added(path, handler)`          | リストへの要素追加を購読                          | Container             |
-| `sub_dict_item_added(path, handler)`      | 辞書への要素追加を購読                | Container             |
+| `sub_state_changed(state_path, handler)`  | 指定パスの値変更を購読（old_value, new_value受信）   | Container             |
+| `sub_for_refresh(state_path, handler)`    | 状態更新時のUI再描画用シンプル通知を購読（引数なし）         | Container             |
+| `sub_state_added(state_path, handler)`    | リストへの要素追加を購読（item, index受信）         | Container             |
+| `sub_dict_item_added(state_path, handler)` | 辞書への要素追加を購読（key, value受信）            | Container             |
 | `register_handler(event, cb)`             | PresentationalコンポーネントでViewイベントのハンドラ登録 | Container             |
 | `trigger_event(event, **kwargs)`          | View→Containerへ任意イベント送出               | Presentational        |
 
@@ -142,10 +144,6 @@ class TodoContainer(ContainerComponentTk[AppState]):
     def add_todo(self):
         # 状態更新
         self.pub_add_to_list(self.store.state.todos, new_todo)
-
-    def add_setting(self, key, val):
-        # 辞書への要素追加
-        self.pub_add_to_dict(self.store.state.settings, key, val)
 ```
 
 **備考:** コンポーネントの ``__init__`` では与えられた ``*args`` と ``**kwargs`` が
@@ -273,7 +271,9 @@ self.publish(DefaultUpdateTopic.UPDATE_STATE, state_path="count", new_value=42)
 ### 全機能を活用したシンプルなカウンターアプリ
 
 ```python
+import asyncio
 import tkinter as tk
+from tkinter import messagebox
 from enum import auto
 
 from pydantic import BaseModel
@@ -286,7 +286,7 @@ from pubsubtk import (
     TkApplication,
 )
 from pubsubtk.topic.topics import AutoNamedTopic
-
+from pubsubtk.utils import make_async_task
 
 # カスタムトピック定義
 class AppTopic(AutoNamedTopic):
@@ -303,11 +303,9 @@ class AppState(BaseModel):
 # テンプレート定義
 class AppTemplate(TemplateComponentTk[AppState]):
     def define_slots(self):
-        # ヘッダー
         self.header = tk.Frame(self, height=50, bg="lightblue")
         self.header.pack(fill=tk.X)
 
-        # メインコンテンツ
         self.main = tk.Frame(self)
         self.main.pack(fill=tk.BOTH, expand=True)
 
@@ -336,24 +334,29 @@ class HeaderContainer(ContainerComponentTk[AppState]):
         self.header_view.pack(fill=tk.BOTH, expand=True)
 
     def setup_subscriptions(self):
-        self.sub_state_changed(self.store.state.total_clicks, self.update_header)
+        self.sub_for_refresh(str(self.store.state.total_clicks), self.refresh_header)
 
     def refresh_from_state(self):
-        self.update_header(None, None)
+        self.refresh_header()
 
-    def update_header(self, old_value, new_value):
+    def refresh_header(self):
         state = self.store.get_current_state()
         self.header_view.update_data(state.total_clicks)
 
 
-# Containerコンポーネント（メインカウンター）
+# Containerコンポーネント（メインカウンター） - asyncユーティリティ利用
 class CounterContainer(ContainerComponentTk[AppState]):
+    """カウンター表示とアイテム削除を管理するコンテナ。"""
+
     def setup_ui(self):
-        # カウンター表示
         self.counter_label = tk.Label(self, text="0", font=("Arial", 32))
         self.counter_label.pack(pady=30)
 
-        # ボタン
+        self.item_list = tk.Listbox(self, height=5)
+        for i in range(5):
+            self.item_list.insert(tk.END, f"Item {i+1}")
+        self.item_list.pack(pady=10)
+
         btn_frame = tk.Frame(self)
         btn_frame.pack(pady=20)
 
@@ -363,9 +366,18 @@ class CounterContainer(ContainerComponentTk[AppState]):
         tk.Button(
             btn_frame, text="リセット", command=self.reset, font=("Arial", 12)
         ).pack(side=tk.LEFT, padx=10)
+        tk.Button(
+            btn_frame, text="削除", command=self.delete_selected, font=("Arial", 12)
+        ).pack(side=tk.LEFT, padx=10)
+        tk.Button(
+            btn_frame,
+            text="サブウィンドウ",
+            command=self.open_subwindow,
+            font=("Arial", 12),
+        ).pack(side=tk.LEFT, padx=10)
 
     def setup_subscriptions(self):
-        self.sub_state_changed(self.store.state.counter, self.on_counter_changed)
+        self.sub_state_changed(str(self.store.state.counter), self.on_counter_changed_old_way)
         self.subscribe(AppTopic.MILESTONE, self.on_milestone)
 
     def refresh_from_state(self):
@@ -373,18 +385,43 @@ class CounterContainer(ContainerComponentTk[AppState]):
         self.counter_label.config(text=str(state.counter))
 
     def increment(self):
-        # カスタムトピックでインクリメント通知
         self.publish(AppTopic.INCREMENT)
 
     def reset(self):
-        # カスタムトピックでリセット通知
         self.publish(AppTopic.RESET)
 
-    def on_counter_changed(self, old_value, new_value):
+    def open_subwindow(self) -> None:
+        self.pub_open_subwindow(SubWindow)
+
+    def delete_selected(self) -> None:
+        self.confirm_delete()
+
+    @make_async_task
+    async def confirm_delete(self) -> None:
+        await asyncio.sleep(0)
+        selection = self.item_list.curselection()
+        if not selection:
+            return
+        if messagebox.askyesno("確認", "選択項目を削除しますか？"):
+            self.item_list.delete(selection[0])
+
+    def on_counter_changed_old_way(self, old_value, new_value):
         self.counter_label.config(text=str(new_value))
 
     def on_milestone(self, value: int):
-        tk.messagebox.showinfo("マイルストーン!", f"{value} に到達しました！")
+        messagebox.showinfo("マイルストーン!", f"{value} に到達しました！")
+
+
+# サブウィンドウ用コンテナ
+class SubWindow(ContainerComponentTk[AppState]):
+    """単純なサブウィンドウ。"""
+
+    def setup_ui(self) -> None:
+        tk.Label(self, text="サブウィンドウです").pack(padx=20, pady=10)
+        tk.Button(self, text="閉じる", command=self.close_window).pack(pady=10)
+
+    def close_window(self) -> None:
+        self.pub_close_subwindow(self.kwargs["win_id"])
 
 
 # Processor（ビジネスロジック）
@@ -398,31 +435,24 @@ class CounterProcessor(ProcessorBase[AppState]):
         new_counter = state.counter + 1
         new_total = state.total_clicks + 1
 
-        # StateProxyで型安全な状態更新
-        self.pub_update_state(self.store.state.counter, new_counter)
-        self.pub_update_state(self.store.state.total_clicks, new_total)
+        self.pub_update_state(str(self.store.state.counter), new_counter)
+        self.pub_update_state(str(self.store.state.total_clicks), new_total)
 
-        # マイルストーン判定
         if new_counter % 10 == 0:
             self.publish(AppTopic.MILESTONE, value=new_counter)
 
     def handle_reset(self):
-        # 便利メソッドで状態リセット
-        self.pub_update_state(self.store.state.counter, 0)
+        self.pub_update_state(str(self.store.state.counter), 0)
 
 
 if __name__ == "__main__":
     app = TkApplication(AppState, title="PubSubTk Simple Demo", geometry="400x300")
-    # Processor登録
     app.pub_register_processor(CounterProcessor)
 
-    # テンプレート設定
     app.set_template(AppTemplate)
 
-    # 各スロットにコンポーネント配置
     app.pub_switch_slot("header", HeaderContainer)
     app.pub_switch_slot("main", CounterContainer)
 
-    # 起動
-    app.run()
+    app.run(use_async=True)
 ```
