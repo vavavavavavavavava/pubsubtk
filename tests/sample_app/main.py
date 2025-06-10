@@ -71,7 +71,9 @@ class HeaderContainer(ContainerComponentTk[AppState]):
 
     def setup_subscriptions(self):
         # 新しいsub_for_refreshを使用 - 引数なしでシンプル
-        self.sub_for_refresh(str(self.store.state.total_clicks), self.refresh_header)
+        self.sub_for_refresh(
+            str(self.store.state.total_clicks), self.refresh_from_state
+        )
 
     def refresh_from_state(self):
         self.refresh_header()
@@ -86,30 +88,7 @@ class HeaderContainer(ContainerComponentTk[AppState]):
 class CounterContainer(ContainerComponentTk[AppState]):
     """カウンター表示とアイテム削除を管理するコンテナ。"""
 
-        tk.Button(
-            btn_frame,
-            text="サブウィンドウ",
-            command=self.open_subwindow,
-            font=("Arial", 12),
-        ).pack(side=tk.LEFT, padx=10)
-    def open_subwindow(self) -> None:
-        """サブウィンドウを表示する。"""
-        self.pub_open_subwindow(SubWindow)
-
-        messagebox.showinfo("マイルストーン!", f"{value} に到達しました！")
-
-
-# サブウィンドウ用コンテナ
-class SubWindow(ContainerComponentTk[AppState]):
-    """単純なサブウィンドウ。"""
-
-    def setup_ui(self) -> None:
-        tk.Label(self, text="サブウィンドウです").pack(padx=20, pady=10)
-        tk.Button(self, text="閉じる", command=self.close_window).pack(pady=10)
-
-    def close_window(self) -> None:
-        """自身を閉じる。"""
-        self.pub_close_subwindow(self.kwargs["win_id"])
+    def setup_ui(self):
         # カウンター表示
         self.counter_label = tk.Label(self, text="0", font=("Arial", 32))
         self.counter_label.pack(pady=30)
@@ -132,6 +111,12 @@ class SubWindow(ContainerComponentTk[AppState]):
         ).pack(side=tk.LEFT, padx=10)
         tk.Button(
             btn_frame, text="削除", command=self.delete_selected, font=("Arial", 12)
+        ).pack(side=tk.LEFT, padx=10)
+        tk.Button(
+            btn_frame,
+            text="サブウィンドウ",
+            command=self.open_subwindow,
+            font=("Arial", 12),
         ).pack(side=tk.LEFT, padx=10)
 
     def setup_subscriptions(self):
@@ -185,6 +170,29 @@ class SubWindow(ContainerComponentTk[AppState]):
     def on_milestone(self, value: int):
         messagebox.showinfo("マイルストーン!", f"{value} に到達しました！")
 
+    def open_subwindow(self) -> None:
+        """サブウィンドウを表示する。"""
+        self.pub_open_subwindow(SubWindow)
+
+
+# サブウィンドウ用コンテナ
+class SubWindow(ContainerComponentTk[AppState]):
+    """単純なサブウィンドウ。"""
+
+    def setup_ui(self) -> None:
+        tk.Label(self, text="サブウィンドウです").pack(padx=20, pady=10)
+        tk.Button(self, text="閉じる", command=self.close_window).pack(pady=10)
+
+    def setup_subscriptions(self):
+        pass
+
+    def refresh_from_state(self):
+        pass
+
+    def close_window(self) -> None:
+        """自身を閉じる。"""
+        self.pub_close_subwindow(self.kwargs["win_id"])
+
 
 # Processor（ビジネスロジック）
 class CounterProcessor(ProcessorBase[AppState]):
@@ -195,7 +203,7 @@ class CounterProcessor(ProcessorBase[AppState]):
     def handle_increment(self):
         state = self.store.get_current_state()
         new_counter = state.counter + 1
-    app.run(use_async=True)
+        new_total = state.total_clicks + 1
 
         # StateProxyで型安全な状態更新
         self.pub_update_state(str(self.store.state.counter), new_counter)
@@ -211,7 +219,7 @@ class CounterProcessor(ProcessorBase[AppState]):
 
 
 if __name__ == "__main__":
-    app = TkApplication(AppState, title="PubSubTk Simple Demo", geometry="400x300")
+    app = TkApplication(AppState, title="PubSubTk Simple Demo", geometry="500x400")
     # Processor登録
     app.pub_register_processor(CounterProcessor)
 
