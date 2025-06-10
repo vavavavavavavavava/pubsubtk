@@ -172,7 +172,7 @@ class CounterProcessor(ProcessorBase[AppState]):
     def handle_increment(self):
         state = self.store.get_current_state()
         new_counter = state.counter + 1
-        new_total = state.total_clicks + 1
+    app.run(use_async=True)
 
         # StateProxyで型安全な状態更新
         self.pub_update_state(str(self.store.state.counter), new_counter)

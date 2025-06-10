@@ -1,7 +1,7 @@
 # async_utils.py
 
 """
-async_utils.py
+src/pubsubtk/utils/async_utils.py
 
 非同期実行に関するユーティリティ関数・デコレーターを提供するモジュール。
 """
@@ -59,17 +59,19 @@ def make_async_task(func: Callable) -> Callable:
 
         @wraps(func)
         def async_task_wrapper(*args, **kwargs):
-            return asyncio.create_task(func(*args, **kwargs))
+            loop = asyncio.get_event_loop()
+            return loop.create_task(func(*args, **kwargs))
 
         return async_task_wrapper
     else:
 
         @wraps(func)
         def sync_task_wrapper(*args, **kwargs):
+            loop = asyncio.get_event_loop()
+
             async def _async_func():
-                loop = asyncio.get_running_loop()
                 return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
 
-            return asyncio.create_task(_async_func())
+            return loop.create_task(_async_func())
 
         return sync_task_wrapper
