@@ -114,11 +114,15 @@ class Store(PubSubBase, Generic[TState]):
         # 新しい値を設定する前に型チェック
         self._validate_and_set_value(target_obj, attr_name, new_value)
 
+        # 詳細な変更通知（old_value, new_valueを含む）
         self.publish(
             f"{DefaultUpdateTopic.STATE_CHANGED}.{state_path}",
             old_value=old_value,
             new_value=new_value,
         )
+        
+        # シンプルな更新通知（引数なし）
+        self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
     def add_to_list(self, state_path: str, item: Any) -> None:
         """リスト属性に要素を追加し、追加通知を送信する。
@@ -146,6 +150,9 @@ class Store(PubSubBase, Generic[TState]):
             item=item,
             index=index,
         )
+        
+        # リスト追加でも更新通知を送信
+        self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
     def add_to_dict(self, state_path: str, key: str, value: Any) -> None:
         """辞書属性に要素を追加し、追加通知を送信する。
@@ -170,6 +177,9 @@ class Store(PubSubBase, Generic[TState]):
             key=key,
             value=value,
         )
+        
+        # 辞書追加でも更新通知を送信
+        self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
     def _resolve_path(self, path: str) -> tuple[Any, str, Any]:
         """

@@ -191,7 +191,7 @@ class PubSubDefaultTopicBase(PubSubBase):
         self, state_path: str, handler: Callable[[Any, Any], None]
     ) -> None:
         """
-        状態が変更されたときの通知を購読する。
+        状態が変更されたときの詳細通知を購読する。
 
         ハンドラー関数には、old_valueとnew_valueが渡されます。
 
@@ -205,6 +205,28 @@ class PubSubDefaultTopicBase(PubSubBase):
             `self.sub_state_changed(str(self.store.state.user.name), self.on_name_changed)`
         """
         self.subscribe(f"{DefaultUpdateTopic.STATE_CHANGED}.{str(state_path)}", handler)
+
+    def sub_for_refresh(
+        self, state_path: str, handler: Callable[[], None]
+    ) -> None:
+        """
+        状態が更新されたときにUI再描画用のシンプルな通知を購読する。
+
+        ハンドラー関数は引数なしで呼び出され、ハンドラー内で必要に応じて
+        store.get_current_state()を使用して現在の状態を取得できます。
+
+        Args:
+            state_path (str): 監視する状態のパス（例: "user.name", "items[2].value"）
+            handler (Callable[[], None]): 更新時に呼び出される引数なしの関数
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for consistent path specification:
+            `self.sub_for_refresh(str(self.store.state.user.name), self.refresh_ui)`
+            
+            このメソッドは、変更内容に関係なく「状態が変わったからUI更新」という
+            パターンに最適です。refresh_from_state()と同じロジックを使い回せます。
+        """
+        self.subscribe(f"{DefaultUpdateTopic.STATE_UPDATED}.{str(state_path)}", handler)
 
     def sub_state_added(
         self, state_path: str, handler: Callable[[Any, int], None]

@@ -54,24 +54,26 @@ class HeaderView(PresentationalComponentTk):
         self.label.config(text=f"PubSubTk Demo - Total Clicks: {total_clicks}")
 
 
-# Containerコンポーネント（ヘッダー管理）
+# Containerコンポーネント（ヘッダー管理） - sub_for_refreshを使用
 class HeaderContainer(ContainerComponentTk[AppState]):
     def setup_ui(self):
         self.header_view = HeaderView(self)
         self.header_view.pack(fill=tk.BOTH, expand=True)
 
     def setup_subscriptions(self):
-        self.sub_state_changed(self.store.state.total_clicks, self.update_header)
+        # 新しいsub_for_refreshを使用 - 引数なしでシンプル
+        self.sub_for_refresh(str(self.store.state.total_clicks), self.refresh_header)
 
     def refresh_from_state(self):
-        self.update_header(None, None)
+        self.refresh_header()
 
-    def update_header(self, old_value, new_value):
+    def refresh_header(self):
+        """引数なしのハンドラー - 必要に応じてstore.get_current_state()で現在値を取得"""
         state = self.store.get_current_state()
         self.header_view.update_data(state.total_clicks)
 
 
-# Containerコンポーネント（メインカウンター）
+# Containerコンポーネント（メインカウンター） - 従来のsub_state_changedも併用
 class CounterContainer(ContainerComponentTk[AppState]):
     def setup_ui(self):
         # カウンター表示
@@ -90,7 +92,13 @@ class CounterContainer(ContainerComponentTk[AppState]):
         ).pack(side=tk.LEFT, padx=10)
 
     def setup_subscriptions(self):
-        self.sub_state_changed(self.store.state.counter, self.on_counter_changed)
+        # 2つの方法を比較
+        # 1. 従来の方法（old_value, new_valueを受け取るが使わない）
+        self.sub_state_changed(str(self.store.state.counter), self.on_counter_changed_old_way)
+        
+        # 2. 新しい方法（引数なしでシンプル）
+        # self.sub_for_refresh(str(self.store.state.counter), self.on_counter_refresh_new_way)
+        
         self.subscribe(AppTopic.MILESTONE, self.on_milestone)
 
     def refresh_from_state(self):
@@ -105,8 +113,14 @@ class CounterContainer(ContainerComponentTk[AppState]):
         # カスタムトピックでリセット通知
         self.publish(AppTopic.RESET)
 
-    def on_counter_changed(self, old_value, new_value):
+    def on_counter_changed_old_way(self, old_value, new_value):
+        """従来の方法 - old_value, new_valueを受け取るが実際は new_value しか使わない"""
         self.counter_label.config(text=str(new_value))
+
+    def on_counter_refresh_new_way(self):
+        """新しい方法 - 引数なしでシンプル、必要に応じてstoreから現在値を取得"""
+        state = self.store.get_current_state()
+        self.counter_label.config(text=str(state.counter))
 
     def on_milestone(self, value: int):
         tk.messagebox.showinfo("マイルストーン!", f"{value} に到達しました！")
@@ -124,8 +138,8 @@ class CounterProcessor(ProcessorBase[AppState]):
         new_total = state.total_clicks + 1
 
         # StateProxyで型安全な状態更新
-        self.pub_update_state(self.store.state.counter, new_counter)
-        self.pub_update_state(self.store.state.total_clicks, new_total)
+        self.pub_update_state(str(self.store.state.counter), new_counter)
+        self.pub_update_state(str(self.store.state.total_clicks), new_total)
 
         # マイルストーン判定
         if new_counter % 10 == 0:
@@ -133,7 +147,7 @@ class CounterProcessor(ProcessorBase[AppState]):
 
     def handle_reset(self):
         # 便利メソッドで状態リセット
-        self.pub_update_state(self.store.state.counter, 0)
+        self.pub_update_state(str(self.store.state.counter), 0)
 
 
 if __name__ == "__main__":
