@@ -382,6 +382,12 @@ class CounterContainer(ContainerComponentTk[AppState]):
         tk.Button(
             btn_frame, text="削除", command=self.delete_selected, font=("Arial", 12)
         ).pack(side=tk.LEFT, padx=10)
+        tk.Button(
+            btn_frame,
+            text="サブウィンドウ",
+            command=self.open_subwindow,
+            font=("Arial", 12),
+        ).pack(side=tk.LEFT, padx=10)
 
     def setup_subscriptions(self):
         self.sub_state_changed(str(self.store.state.counter), self.on_counter_changed_old_way)
@@ -396,6 +402,9 @@ class CounterContainer(ContainerComponentTk[AppState]):
 
     def reset(self):
         self.publish(AppTopic.RESET)
+
+    def open_subwindow(self) -> None:
+        self.pub_open_subwindow(SubWindow)
 
     def delete_selected(self) -> None:
         self.confirm_delete()
@@ -414,6 +423,18 @@ class CounterContainer(ContainerComponentTk[AppState]):
 
     def on_milestone(self, value: int):
         messagebox.showinfo("マイルストーン!", f"{value} に到達しました！")
+
+
+# サブウィンドウ用コンテナ
+class SubWindow(ContainerComponentTk[AppState]):
+    """単純なサブウィンドウ。"""
+
+    def setup_ui(self) -> None:
+        tk.Label(self, text="サブウィンドウです").pack(padx=20, pady=10)
+        tk.Button(self, text="閉じる", command=self.close_window).pack(pady=10)
+
+    def close_window(self) -> None:
+        self.pub_close_subwindow(self.kwargs["win_id"])
 
 
 # Processor（ビジネスロジック）

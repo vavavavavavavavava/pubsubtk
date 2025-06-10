@@ -86,7 +86,30 @@ class HeaderContainer(ContainerComponentTk[AppState]):
 class CounterContainer(ContainerComponentTk[AppState]):
     """カウンター表示とアイテム削除を管理するコンテナ。"""
 
-    def setup_ui(self):
+        tk.Button(
+            btn_frame,
+            text="サブウィンドウ",
+            command=self.open_subwindow,
+            font=("Arial", 12),
+        ).pack(side=tk.LEFT, padx=10)
+    def open_subwindow(self) -> None:
+        """サブウィンドウを表示する。"""
+        self.pub_open_subwindow(SubWindow)
+
+        messagebox.showinfo("マイルストーン!", f"{value} に到達しました！")
+
+
+# サブウィンドウ用コンテナ
+class SubWindow(ContainerComponentTk[AppState]):
+    """単純なサブウィンドウ。"""
+
+    def setup_ui(self) -> None:
+        tk.Label(self, text="サブウィンドウです").pack(padx=20, pady=10)
+        tk.Button(self, text="閉じる", command=self.close_window).pack(pady=10)
+
+    def close_window(self) -> None:
+        """自身を閉じる。"""
+        self.pub_close_subwindow(self.kwargs["win_id"])
         # カウンター表示
         self.counter_label = tk.Label(self, text="0", font=("Arial", 32))
         self.counter_label.pack(pady=30)
