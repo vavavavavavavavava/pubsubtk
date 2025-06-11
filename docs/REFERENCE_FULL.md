@@ -543,6 +543,7 @@ from pubsub import pub
 # PubSub専用のロガーを作成
 _pubsub_logger = logging.getLogger("pubsubtk.pubsub")
 
+
 class PubSubBase(ABC):
     """
     PubSubパターンの基底クラス。
@@ -619,6 +620,7 @@ class PubSubBase(ABC):
         """
         self.unsubscribe_all()
 
+
 # デバッグログを有効化するユーティリティ関数
 def enable_pubsub_debug_logging(level: int = logging.DEBUG) -> None:
     """
@@ -644,12 +646,14 @@ def enable_pubsub_debug_logging(level: int = logging.DEBUG) -> None:
 
     _pubsub_logger.debug("PubSub debug logging enabled")
 
+
 def disable_pubsub_debug_logging() -> None:
     """
     PubSubのデバッグログを無効化する。
     """
     _pubsub_logger.setLevel(logging.WARNING)
     _pubsub_logger.debug("PubSub debug logging disabled")
+
 
 ```
 
@@ -658,7 +662,11 @@ def disable_pubsub_debug_logging() -> None:
 ```python
 # default_topic_base.py - デフォルトトピック操作をまとめた基底クラス
 
-"""主要な PubSub トピックに対する便利メソッドを提供します。"""
+"""
+src/pubsubtk/core/default_topic_base.py
+
+主要な PubSub トピックに対する便利メソッドを提供します。
+"""
 
 from __future__ import annotations
 
@@ -675,6 +683,7 @@ if TYPE_CHECKING:
     # 型チェック時（mypy や IDE 補完時）のみ読み込む
     from pubsubtk.processor.processor_base import ProcessorBase
     from pubsubtk.ui.types import ComponentType, ContainerComponentType
+
 
 class PubSubDefaultTopicBase(PubSubBase):
     """
@@ -760,6 +769,14 @@ class PubSubDefaultTopicBase(PubSubBase):
         """すべてのサブウィンドウを閉じるPubSubメッセージを送信する。"""
         self.publish(DefaultNavigateTopic.CLOSE_ALL_SUBWINDOWS)
 
+    def pub_replace_state(self, new_state: Any) -> None:
+        """状態オブジェクト全体を置き換えるPubSubメッセージを送信する。
+
+        Args:
+            new_state: 新しい状態オブジェクト。
+        """
+        self.publish(DefaultUpdateTopic.REPLACE_STATE, new_state=new_state)
+
     def pub_update_state(self, state_path: str, new_value: Any) -> None:
         """
         Storeの状態を更新するPubSubメッセージを送信する。
@@ -797,17 +814,16 @@ class PubSubDefaultTopicBase(PubSubBase):
         )
 
     def pub_add_to_dict(self, state_path: str, key: str, value: Any) -> None:
-        """
-        Storeの状態（辞書）に要素を追加するPubSubメッセージを送信する。
+        """Storeの状態(辞書)に要素を追加するPubSubメッセージを送信する。
 
         Args:
-            state_path (str): 要素を追加する辞書の状態パス（例: "mapping"）
-            key (str): 追加するキー
-            value (Any): 追加する値
+            state_path: 要素を追加する辞書の状態パス。
+            key: 追加するキー。
+            value: 追加する値。
 
         Note:
             **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
-            `self.pub_add_to_dict(str(self.store.state.mapping), "k", value)`
+            `self.pub_add_to_dict(str(self.store.state.mapping), "k", v)`
         """
         self.publish(
             DefaultUpdateTopic.ADD_TO_DICT,
@@ -845,7 +861,7 @@ class PubSubDefaultTopicBase(PubSubBase):
         self, state_path: str, handler: Callable[[Any, Any], None]
     ) -> None:
         """
-        状態が変更されたときの通知を購読する。
+        状態が変更されたときの詳細通知を購読する。
 
         ハンドラー関数には、old_valueとnew_valueが渡されます。
 
@@ -859,6 +875,26 @@ class PubSubDefaultTopicBase(PubSubBase):
             `self.sub_state_changed(str(self.store.state.user.name), self.on_name_changed)`
         """
         self.subscribe(f"{DefaultUpdateTopic.STATE_CHANGED}.{str(state_path)}", handler)
+
+    def sub_for_refresh(self, state_path: str, handler: Callable[[], None]) -> None:
+        """
+        状態が更新されたときにUI再描画用のシンプルな通知を購読する。
+
+        ハンドラー関数は引数なしで呼び出され、ハンドラー内で必要に応じて
+        store.get_current_state()を使用して現在の状態を取得できます。
+
+        Args:
+            state_path (str): 監視する状態のパス（例: "user.name", "items[2].value"）
+            handler (Callable[[], None]): 更新時に呼び出される引数なしの関数
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for consistent path specification:
+            `self.sub_for_refresh(str(self.store.state.user.name), self.refresh_ui)`
+
+            このメソッドは、変更内容に関係なく「状態が変わったからUI更新」という
+            パターンに最適です。refresh_from_state()と同じロジックを使い回せます。
+        """
+        self.subscribe(f"{DefaultUpdateTopic.STATE_UPDATED}.{str(state_path)}", handler)
 
     def sub_state_added(
         self, state_path: str, handler: Callable[[Any, int], None]
@@ -899,6 +935,7 @@ class PubSubDefaultTopicBase(PubSubBase):
             handler,
         )
 
+
 ```
 
 ### トピックシステム
@@ -908,9 +945,14 @@ class PubSubDefaultTopicBase(PubSubBase):
 ```python
 # topics.py - PubSub トピック列挙型の定義
 
-"""アプリケーションで使用する PubSub トピック列挙型を提供します。"""
+"""
+src/pubsubtk/topic/topics.py
+
+アプリケーションで使用する PubSub トピック列挙型を提供します。
+"""
 
 from enum import StrEnum, auto
+
 
 class AutoNamedTopic(StrEnum):
     """
@@ -933,6 +975,7 @@ class AutoNamedTopic(StrEnum):
     def __str__(self):
         return self.value
 
+
 class DefaultNavigateTopic(AutoNamedTopic):
     """
     標準的な画面遷移・ウィンドウ操作用のPubSubトピック列挙型。
@@ -944,6 +987,7 @@ class DefaultNavigateTopic(AutoNamedTopic):
     CLOSE_SUBWINDOW = auto()
     CLOSE_ALL_SUBWINDOWS = auto()
 
+
 class DefaultUpdateTopic(AutoNamedTopic):
     """
     標準的な状態更新通知用のPubSubトピック列挙型。
@@ -951,8 +995,13 @@ class DefaultUpdateTopic(AutoNamedTopic):
 
     UPDATE_STATE = auto()
     ADD_TO_LIST = auto()
+    ADD_TO_DICT = auto()
+    REPLACE_STATE = auto()
     STATE_CHANGED = auto()
     STATE_ADDED = auto()
+    STATE_UPDATED = auto()
+    DICT_ADDED = auto()
+
 
 class DefaultProcessorTopic(AutoNamedTopic):
     """
@@ -961,6 +1010,7 @@ class DefaultProcessorTopic(AutoNamedTopic):
 
     REGISTER_PROCESSOR = auto()
     DELETE_PROCESSOR = auto()
+
 
 ```
 
@@ -971,7 +1021,11 @@ class DefaultProcessorTopic(AutoNamedTopic):
 ```python
 # store.py - アプリケーション状態を管理するクラス
 
-"""Pydantic モデルを用いた型安全な状態管理を提供します。"""
+"""
+src/pubsubtk/store/store.py
+
+Pydantic モデルを用いた型安全な状態管理を提供します。
+"""
 
 from typing import Any, Generic, Optional, Type, TypeVar, cast
 
@@ -982,6 +1036,7 @@ from pubsubtk.core.pubsub_base import PubSubBase
 from pubsubtk.topic.topics import DefaultUpdateTopic
 
 TState = TypeVar("TState", bound=BaseModel)
+
 
 class StateProxy(Generic[TState]):
     """
@@ -1025,6 +1080,7 @@ class StateProxy(Generic[TState]):
 
     __str__ = __repr__
 
+
 class Store(PubSubBase, Generic[TState]):
     """
     型安全な状態管理を提供するジェネリックなStoreクラス。
@@ -1045,13 +1101,14 @@ class Store(PubSubBase, Generic[TState]):
         """
         self._state_class = initial_state_class
         self._state = initial_state_class()
-        
+
         # PubSubBase.__init__()を呼び出して購読設定を有効化
         super().__init__()
 
     def setup_subscriptions(self):
         self.subscribe(DefaultUpdateTopic.UPDATE_STATE, self.update_state)
         self.subscribe(DefaultUpdateTopic.ADD_TO_LIST, self.add_to_list)
+        self.subscribe(DefaultUpdateTopic.ADD_TO_DICT, self.add_to_dict)
 
     @property
     def state(self) -> TState:
@@ -1066,6 +1123,30 @@ class Store(PubSubBase, Generic[TState]):
         """
         return self._state.model_copy(deep=True)
 
+    def replace_state(self, new_state: TState) -> None:
+        """状態オブジェクト全体を置き換え、全フィールドに変更通知を送信する。
+
+        Args:
+            new_state: 新しい状態オブジェクト。
+        """
+        if not isinstance(new_state, self._state_class):
+            raise TypeError(f"new_state must be an instance of {self._state_class}")
+
+        old_state = self._state
+        self._state = new_state.model_copy(deep=True)
+
+        # 全フィールドに変更通知を送信
+        for field_name in self._state_class.model_fields.keys():
+            old_value = getattr(old_state, field_name)
+            new_value = getattr(self._state, field_name)
+
+            self.publish(
+                f"{DefaultUpdateTopic.STATE_CHANGED}.{field_name}",
+                old_value=old_value,
+                new_value=new_value,
+            )
+            self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{field_name}")
+
     def update_state(self, state_path: str, new_value: Any) -> None:
         """指定パスの属性を更新し、変更通知を送信する。
 
@@ -1078,11 +1159,15 @@ class Store(PubSubBase, Generic[TState]):
         # 新しい値を設定する前に型チェック
         self._validate_and_set_value(target_obj, attr_name, new_value)
 
+        # 詳細な変更通知（old_value, new_valueを含む）
         self.publish(
             f"{DefaultUpdateTopic.STATE_CHANGED}.{state_path}",
             old_value=old_value,
             new_value=new_value,
         )
+
+        # シンプルな更新通知（引数なし）
+        self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
     def add_to_list(self, state_path: str, item: Any) -> None:
         """リスト属性に要素を追加し、追加通知を送信する。
@@ -1102,7 +1187,7 @@ class Store(PubSubBase, Generic[TState]):
 
         # 新しいリストで更新
         self._validate_and_set_value(target_obj, attr_name, new_list)
-        
+
         index = len(new_list) - 1
 
         pub.sendMessage(
@@ -1110,6 +1195,9 @@ class Store(PubSubBase, Generic[TState]):
             item=item,
             index=index,
         )
+
+        # リスト追加でも更新通知を送信
+        self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
     def add_to_dict(self, state_path: str, key: str, value: Any) -> None:
         """辞書属性に要素を追加し、追加通知を送信する。
@@ -1134,6 +1222,9 @@ class Store(PubSubBase, Generic[TState]):
             key=key,
             value=value,
         )
+
+        # 辞書追加でも更新通知を送信
+        self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
     def _resolve_path(self, path: str) -> tuple[Any, str, Any]:
         """
@@ -1172,7 +1263,7 @@ class Store(PubSubBase, Generic[TState]):
         """属性値を型検証してから設定する。"""
         # Pydanticモデルの場合、フィールドの型情報を取得
         if isinstance(target_obj, BaseModel):
-            model_fields = target_obj.model_fields
+            model_fields = target_obj.__class__.model_fields
 
             if attr_name in model_fields:
                 field_info = model_fields[attr_name]
@@ -1189,8 +1280,10 @@ class Store(PubSubBase, Generic[TState]):
         # 通常の属性設定
         setattr(target_obj, attr_name, new_value)
 
+
 # 実体としてはどんな State 型でも格納できるので Any
 _store: Optional[Store[Any]] = None
+
 
 def get_store(state_cls: Type[TState]) -> Store[TState]:
     """グローバルな ``Store`` インスタンスを取得する。
@@ -1214,6 +1307,7 @@ def get_store(state_cls: Type[TState]) -> Store[TState]:
                 f"Store は既に {existing!r} で生成されています（呼び出し時の state_cls={state_cls!r}）"
             )
     return cast(Store[TState], _store)
+
 
 ```
 
@@ -1259,6 +1353,7 @@ if TYPE_CHECKING:
 TState = TypeVar("TState", bound=BaseModel)
 P = TypeVar("P", bound=ProcessorBase)
 
+
 def _default_poll(loop: asyncio.AbstractEventLoop, root: tk.Tk, interval: int) -> None:
     """非同期イベントループを ``after`` で定期実行する補助関数。
 
@@ -1274,6 +1369,7 @@ def _default_poll(loop: asyncio.AbstractEventLoop, root: tk.Tk, interval: int) -
     except Exception:
         pass
     root.after(interval, _default_poll, loop, root, interval)
+
 
 class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
     """Tk/Ttk いずれのウィンドウクラスでも共通の機能を提供する Mixin."""
@@ -1551,7 +1647,8 @@ class ApplicationCommon(PubSubDefaultTopicBase, Generic[TState]):
         self.close_all_subwindows()
         self.destroy()
 
-class TkApplication(ApplicationCommon, tk.Tk):
+
+class TkApplication(ApplicationCommon[TState], tk.Tk, Generic[TState]):
     def __init__(
         self,
         state_cls: Type[TState],
@@ -1575,7 +1672,8 @@ class TkApplication(ApplicationCommon, tk.Tk):
         # now do your common window setup
         self.init_common(title, geometry)
 
-class ThemedApplication(ApplicationCommon, ThemedTk):
+
+class ThemedApplication(ApplicationCommon[TState], ThemedTk, Generic[TState]):
     def __init__(
         self,
         state_cls: Type[TState],
@@ -1625,6 +1723,7 @@ from pubsubtk.core.default_topic_base import PubSubDefaultTopicBase
 from pubsubtk.store.store import Store
 
 TState = TypeVar("TState", bound=BaseModel)
+
 
 class ContainerMixin(PubSubDefaultTopicBase, ABC, Generic[TState]):
     """
@@ -1685,6 +1784,7 @@ class ContainerMixin(PubSubDefaultTopicBase, ABC, Generic[TState]):
         self.teardown()
         super().destroy()
 
+
 class ContainerComponentTk(ContainerMixin[TState], tk.Frame, Generic[TState]):
     """
     標準tk.FrameベースのPubSub連携コンテナ。
@@ -1700,6 +1800,7 @@ class ContainerComponentTk(ContainerMixin[TState], tk.Frame, Generic[TState]):
 
         tk.Frame.__init__(self, master=parent)
         ContainerMixin.__init__(self, store=store, *args, **kwargs)
+
 
 class ContainerComponentTtk(ContainerMixin[TState], ttk.Frame, Generic[TState]):
     """
@@ -1732,6 +1833,7 @@ import tkinter as tk
 from abc import ABC, abstractmethod
 from tkinter import ttk
 from typing import Any, Callable, Dict
+
 
 class PresentationalMixin(ABC):
     """
@@ -1771,6 +1873,7 @@ class PresentationalMixin(ABC):
         if handler := self._handlers.get(event_name):
             handler(**kwargs)
 
+
 # tk.Frame ベース の抽象クラス
 class PresentationalComponentTk(PresentationalMixin, tk.Frame):
     """
@@ -1782,6 +1885,7 @@ class PresentationalComponentTk(PresentationalMixin, tk.Frame):
 
         tk.Frame.__init__(self, master=parent)
         PresentationalMixin.__init__(self, *args, **kwargs)
+
 
 # ttk.Frame ベース の抽象クラス
 class PresentationalComponentTtk(PresentationalMixin, ttk.Frame):
@@ -1820,6 +1924,7 @@ if TYPE_CHECKING:
     from pubsubtk.ui.types import ComponentType
 
 TState = TypeVar("TState", bound=BaseModel)
+
 
 class TemplateMixin(ABC, Generic[TState]):
     """
@@ -1942,6 +2047,7 @@ class TemplateMixin(ABC, Generic[TState]):
         for slot_name in list(self._slot_contents.keys()):
             self.clear_slot(slot_name)
 
+
 class TemplateComponentTk(TemplateMixin[TState], tk.Frame, Generic[TState]):
     """
     標準tk.Frameベースのテンプレートコンポーネント。
@@ -1952,6 +2058,7 @@ class TemplateComponentTk(TemplateMixin[TState], tk.Frame, Generic[TState]):
 
         tk.Frame.__init__(self, master=parent)
         TemplateMixin.__init__(self, store=store, *args, **kwargs)
+
 
 class TemplateComponentTtk(TemplateMixin[TState], ttk.Frame, Generic[TState]):
     """
@@ -1984,6 +2091,7 @@ from pubsubtk.store.store import Store
 
 TState = TypeVar("TState", bound=BaseModel)
 
+
 class ProcessorBase(PubSubDefaultTopicBase, Generic[TState]):
     """Processor の基底クラス。"""
 
@@ -1994,4 +2102,5 @@ class ProcessorBase(PubSubDefaultTopicBase, Generic[TState]):
         self.store: Store[TState] = store
 
         super().__init__(*args, **kwargs)
+
 ```
