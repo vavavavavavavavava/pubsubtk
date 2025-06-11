@@ -71,9 +71,7 @@ class HeaderContainer(ContainerComponentTk[AppState]):
 
     def setup_subscriptions(self):
         # 新しいsub_for_refreshを使用 - 引数なしでシンプル
-        self.sub_for_refresh(
-            str(self.store.state.total_clicks), self.refresh_from_state
-        )
+        self.sub_for_refresh(self.store.state.total_clicks, self.refresh_from_state)
 
     def refresh_from_state(self):
         self.refresh_header()
@@ -123,11 +121,11 @@ class CounterContainer(ContainerComponentTk[AppState]):
         # 2つの方法を比較
         # 1. 従来の方法（old_value, new_valueを受け取るが使わない）
         self.sub_state_changed(
-            str(self.store.state.counter), self.on_counter_changed_old_way
+            self.store.state.counter, self.on_counter_changed_old_way
         )
 
         # 2. 新しい方法（引数なしでシンプル）
-        # self.sub_for_refresh(str(self.store.state.counter), self.on_counter_refresh_new_way)
+        # self.sub_for_refresh(self.store.state.counter, self.on_counter_refresh_new_way)
 
         self.subscribe(AppTopic.MILESTONE, self.on_milestone)
 
@@ -206,8 +204,8 @@ class CounterProcessor(ProcessorBase[AppState]):
         new_total = state.total_clicks + 1
 
         # StateProxyで型安全な状態更新
-        self.pub_update_state(str(self.store.state.counter), new_counter)
-        self.pub_update_state(str(self.store.state.total_clicks), new_total)
+        self.pub_update_state(self.store.state.counter, new_counter)
+        self.pub_update_state(self.store.state.total_clicks, new_total)
 
         # マイルストーン判定
         if new_counter % 10 == 0:
@@ -215,7 +213,7 @@ class CounterProcessor(ProcessorBase[AppState]):
 
     def handle_reset(self):
         # 便利メソッドで状態リセット
-        self.pub_update_state(str(self.store.state.counter), 0)
+        self.pub_update_state(self.store.state.counter, 0)
 
 
 if __name__ == "__main__":
