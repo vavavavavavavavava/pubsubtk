@@ -8,7 +8,6 @@ Pydantic モデルを用いた型安全な状態管理を提供します。
 
 from typing import Any, Generic, Optional, Type, TypeVar, cast
 
-from pubsub import pub
 from pydantic import BaseModel
 
 from pubsubtk.core.pubsub_base import PubSubBase
@@ -170,7 +169,7 @@ class Store(PubSubBase, Generic[TState]):
 
         index = len(new_list) - 1
 
-        pub.sendMessage(
+        self.publish(
             f"{DefaultUpdateTopic.STATE_ADDED}.{state_path}",
             item=item,
             index=index,
@@ -197,7 +196,7 @@ class Store(PubSubBase, Generic[TState]):
 
         self._validate_and_set_value(target_obj, attr_name, new_dict)
 
-        pub.sendMessage(
+        self.publish(
             f"{DefaultUpdateTopic.DICT_ADDED}.{state_path}",
             key=key,
             value=value,
