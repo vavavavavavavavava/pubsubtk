@@ -86,6 +86,7 @@ class Store(PubSubBase, Generic[TState]):
 
     def setup_subscriptions(self):
         self.subscribe(DefaultUpdateTopic.UPDATE_STATE, self.update_state)
+        self.subscribe(DefaultUpdateTopic.REPLACE_STATE, self.replace_state)
         self.subscribe(DefaultUpdateTopic.ADD_TO_LIST, self.add_to_list)
         self.subscribe(DefaultUpdateTopic.ADD_TO_DICT, self.add_to_dict)
 
