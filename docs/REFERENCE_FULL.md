@@ -288,15 +288,17 @@ self.publish(DefaultUpdateTopic.UPDATE_STATE, state_path="count", new_value=42)
 
 ```python
 """
-tests/sample_app/main.py
+PubSubTk 全機能コンパクトデモ
 
-簡易デモアプリケーション
+PubSubDefaultTopicBaseの全メソッドを使用した小規模なデモアプリケーション
 """
 
 import asyncio
+import json
 import tkinter as tk
 from enum import auto
-from tkinter import messagebox
+from tkinter import filedialog, messagebox, simpledialog
+from typing import List
 
 from pydantic import BaseModel
 
@@ -311,178 +313,521 @@ from pubsubtk import (
 )
 
 
-# カスタムトピック定義
+# カスタムトピック
 class AppTopic(AutoNamedTopic):
-    INCREMENT = auto()  # -> "AppTopic.increment"
-    RESET = auto()  # -> "AppTopic.reset"
-    MILESTONE = auto()  # -> "AppTopic.milestone"
+    INCREMENT = auto()
+    RESET = auto()
+    MILESTONE = auto()
+
+
+# データモデル
+class TodoItem(BaseModel):
+    id: int
+    text: str
+    completed: bool = False
 
 
 class AppState(BaseModel):
     counter: int = 0
     total_clicks: int = 0
+    todos: List[TodoItem] = []
+    next_todo_id: int = 1
+    settings: dict = {"theme": "default", "auto_save": "true"}
+    current_view: str = "main"
 
 
-# テンプレート定義
+# =============================================================================
+# テンプレート（3スロット構成）
+# =============================================================================
+
+
 class AppTemplate(TemplateComponentTk[AppState]):
     def define_slots(self):
-        # ヘッダー
-        self.header = tk.Frame(self, height=50, bg="lightblue")
-        self.header.pack(fill=tk.X)
+        # ナビゲーション
+        self.navbar = tk.Frame(self, height=40, bg="navy")
+        self.navbar.pack(fill=tk.X)
+        self.navbar.pack_propagate(False)
 
         # メインコンテンツ
-        self.main = tk.Frame(self)
-        self.main.pack(fill=tk.BOTH, expand=True)
+        self.main_area = tk.Frame(self)
+        self.main_area.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
+
+        # サイドバー
+        self.sidebar = tk.Frame(self, width=200, bg="lightgray")
+        self.sidebar.pack(fill=tk.Y, side=tk.RIGHT)
+        self.sidebar.pack_propagate(False)
 
         return {
-            "header": self.header,
-            "main": self.main,
+            "navbar": self.navbar,
+            "main": self.main_area,
+            "sidebar": self.sidebar,
         }
 
 
-# Presentationalコンポーネント（ヘッダー表示）
-class HeaderView(PresentationalComponentTk):
+# =============================================================================
+# Presentationalコンポーネント（純粋表示）
+# =============================================================================
+
+
+class TodoItemView(PresentationalComponentTk):
     def setup_ui(self):
-        self.label = tk.Label(
-            self, text="PubSubTk Demo", font=("Arial", 16), bg="lightblue"
+        self.configure(relief=tk.RAISED, borderwidth=1, padx=5, pady=3)
+
+        self.var = tk.BooleanVar()
+        self.checkbox = tk.Checkbutton(self, variable=self.var, command=self.on_toggle)
+        self.checkbox.pack(side=tk.LEFT)
+
+        self.label = tk.Label(self, text="", anchor="w")
+        self.label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        self.delete_btn = tk.Button(self, text="×", width=3, command=self.on_delete)
+        self.delete_btn.pack(side=tk.RIGHT)
+
+    def update_data(self, todo: TodoItem):
+        self.todo = todo
+        self.var.set(todo.completed)
+        text = f"✓ {todo.text}" if todo.completed else todo.text
+        self.label.config(text=text, fg="gray" if todo.completed else "black")
+
+    def on_toggle(self):
+        self.trigger_event("toggle", todo_id=self.todo.id)
+
+    def on_delete(self):
+        self.trigger_event("delete", todo_id=self.todo.id)
+
+
+class StatsView(PresentationalComponentTk):
+    def setup_ui(self):
+        self.configure(bg="lightblue", relief=tk.SUNKEN, borderwidth=2)
+
+        tk.Label(self, text="📊 統計", font=("Arial", 12, "bold"), bg="lightblue").pack(
+            pady=5
         )
-        self.label.pack(pady=10)
 
-    def update_data(self, total_clicks: int):
-        self.label.config(text=f"PubSubTk Demo - Total Clicks: {total_clicks}")
+        self.stats_label = tk.Label(self, text="", bg="lightblue", justify=tk.LEFT)
+        self.stats_label.pack(padx=10, pady=5, fill=tk.BOTH, expand=True)
+
+    def update_stats(
+        self,
+        counter: int,
+        total_clicks: int,
+        total_todos: int,
+        completed_todos: int,
+        settings_count: int,
+        current_view: str,
+    ):
+        """純粋な表示コンポーネント - 必要なデータのみを個別に受け取る"""
+        uncompleted = total_todos - completed_todos
+
+        stats = f"""
+        カウンター: {counter}
+        総クリック: {total_clicks}
+
+        Todo統計:
+        ・総数: {total_todos}
+        ・完了: {completed_todos}
+        ・未完了: {uncompleted}
+
+        設定数: {settings_count}
+        現在画面: {current_view}
+        """
+
+        self.stats_label.config(text=stats)
 
 
-# Containerコンポーネント（ヘッダー管理） - sub_for_refreshを使用
-class HeaderContainer(ContainerComponentTk[AppState]):
+# =============================================================================
+# Containerコンポーネント（状態連携）
+# =============================================================================
+
+
+class NavbarContainer(ContainerComponentTk[AppState]):
     def setup_ui(self):
-        self.header_view = HeaderView(self)
-        self.header_view.pack(fill=tk.BOTH, expand=True)
+        self.configure(bg="navy")
+
+        tk.Label(
+            self,
+            text="🎯 PubSubTk Demo",
+            fg="white",
+            bg="navy",
+            font=("Arial", 14, "bold"),
+        ).pack(side=tk.LEFT, padx=10, pady=5)
+
+        nav_frame = tk.Frame(self, bg="navy")
+        nav_frame.pack(side=tk.RIGHT, padx=10)
+
+        self.main_btn = tk.Button(nav_frame, text="メイン", command=self.switch_to_main)
+        self.main_btn.pack(side=tk.LEFT, padx=2)
+
+        self.todo_btn = tk.Button(nav_frame, text="Todo", command=self.switch_to_todo)
+        self.todo_btn.pack(side=tk.LEFT, padx=2)
 
     def setup_subscriptions(self):
-        # 新しいsub_for_refreshを使用 - 引数なしでシンプル
-        self.sub_for_refresh(self.store.state.total_clicks, self.refresh_from_state)
+        self.sub_state_changed(self.store.state.current_view, self.on_view_changed)
 
     def refresh_from_state(self):
-        self.refresh_header()
-
-    def refresh_header(self):
-        """引数なしのハンドラー - 必要に応じてstore.get_current_state()で現在値を取得"""
         state = self.store.get_current_state()
-        self.header_view.update_data(state.total_clicks)
+        self.update_buttons(state.current_view)
 
+    def on_view_changed(self, old_value, new_value):
+        self.update_buttons(new_value)
 
-# Containerコンポーネント（メインカウンター） - 従来のsub_state_changedも併用
-class CounterContainer(ContainerComponentTk[AppState]):
-    """カウンター表示とアイテム削除を管理するコンテナ。"""
-
-    def setup_ui(self):
-        # カウンター表示
-        self.counter_label = tk.Label(self, text="0", font=("Arial", 32))
-        self.counter_label.pack(pady=30)
-
-        # アイテムリスト
-        self.item_list = tk.Listbox(self, height=5)
-        for i in range(5):
-            self.item_list.insert(tk.END, f"Item {i + 1}")
-        self.item_list.pack(pady=10)
-
-        # ボタン
-        btn_frame = tk.Frame(self)
-        btn_frame.pack(pady=20)
-
-        tk.Button(
-            btn_frame, text="カウントアップ", command=self.increment, font=("Arial", 12)
-        ).pack(side=tk.LEFT, padx=10)
-        tk.Button(
-            btn_frame, text="リセット", command=self.reset, font=("Arial", 12)
-        ).pack(side=tk.LEFT, padx=10)
-        tk.Button(
-            btn_frame, text="削除", command=self.delete_selected, font=("Arial", 12)
-        ).pack(side=tk.LEFT, padx=10)
-        tk.Button(
-            btn_frame,
-            text="サブウィンドウ",
-            command=self.open_subwindow,
-            font=("Arial", 12),
-        ).pack(side=tk.LEFT, padx=10)
-
-    def setup_subscriptions(self):
-        # 2つの方法を比較
-        # 1. 従来の方法（old_value, new_valueを受け取るが使わない）
-        self.sub_state_changed(
-            self.store.state.counter, self.on_counter_changed_old_way
+    def update_buttons(self, current_view: str):
+        self.main_btn.config(
+            bg="lightblue" if current_view == "main" else "SystemButtonFace"
+        )
+        self.todo_btn.config(
+            bg="lightblue" if current_view == "todo" else "SystemButtonFace"
         )
 
-        # 2. 新しい方法（引数なしでシンプル）
-        # self.sub_for_refresh(self.store.state.counter, self.on_counter_refresh_new_way)
+    def switch_to_main(self):
+        self.pub_update_state(self.store.state.current_view, "main")
+        self.pub_switch_slot("main", MainContainer)
 
+    def switch_to_todo(self):
+        self.pub_update_state(self.store.state.current_view, "todo")
+        self.pub_switch_slot("main", TodoContainer)
+
+
+class MainContainer(ContainerComponentTk[AppState]):
+    def setup_ui(self):
+        tk.Label(self, text="🏠 メインビュー", font=("Arial", 16, "bold")).pack(pady=10)
+
+        # カウンター
+        self.counter_label = tk.Label(self, text="0", font=("Arial", 32))
+        self.counter_label.pack(pady=20)
+
+        # ボタン群
+        btn_frame = tk.Frame(self)
+        btn_frame.pack(pady=10)
+
+        tk.Button(btn_frame, text="カウント", command=self.increment).pack(
+            side=tk.LEFT, padx=5
+        )
+        tk.Button(btn_frame, text="リセット", command=self.reset).pack(
+            side=tk.LEFT, padx=5
+        )
+        tk.Button(btn_frame, text="サブウィンドウ", command=self.open_sub).pack(
+            side=tk.LEFT, padx=5
+        )
+
+        # ファイル操作
+        file_frame = tk.Frame(self)
+        file_frame.pack(pady=10)
+
+        tk.Button(file_frame, text="保存", command=self.save_data).pack(
+            side=tk.LEFT, padx=5
+        )
+        tk.Button(file_frame, text="読込", command=self.load_data).pack(
+            side=tk.LEFT, padx=5
+        )
+
+        # 設定操作（辞書機能テスト）
+        setting_frame = tk.Frame(self)
+        setting_frame.pack(pady=10)
+
+        tk.Button(setting_frame, text="設定追加", command=self.add_setting).pack(
+            side=tk.LEFT, padx=5
+        )
+        tk.Button(
+            setting_frame, text="プロセッサー追加", command=self.add_processor
+        ).pack(side=tk.LEFT, padx=5)
+
+        # 危険な操作
+        tk.Button(
+            self, text="全状態リセット", command=self.reset_all, bg="red", fg="white"
+        ).pack(pady=10)
+
+    def setup_subscriptions(self):
+        self.sub_state_changed(self.store.state.counter, self.on_counter_changed)
         self.subscribe(AppTopic.MILESTONE, self.on_milestone)
 
     def refresh_from_state(self):
         state = self.store.get_current_state()
         self.counter_label.config(text=str(state.counter))
 
+    def on_counter_changed(self, old_value, new_value):
+        self.counter_label.config(text=str(new_value))
+
     def increment(self):
-        # カスタムトピックでインクリメント通知
         self.publish(AppTopic.INCREMENT)
 
     def reset(self):
-        # カスタムトピックでリセット通知
         self.publish(AppTopic.RESET)
 
-    def delete_selected(self) -> None:
-        """選択アイテムの削除処理を開始する。"""
-        self.confirm_delete()
-
-    @make_async_task
-    async def confirm_delete(self) -> None:
-        """削除確認後にリストからアイテムを除去する。"""
-
-        await asyncio.sleep(0)
-        selection = self.item_list.curselection()
-        if not selection:
-            return
-        if messagebox.askyesno("確認", "選択項目を削除しますか？"):
-            self.item_list.delete(selection[0])
-
-    def on_counter_changed_old_way(self, old_value, new_value):
-        """従来の方法 - old_value, new_valueを受け取るが実際は new_value しか使わない"""
-        self.counter_label.config(text=str(new_value))
-
-    def on_counter_refresh_new_way(self):
-        """新しい方法 - 引数なしでシンプル、必要に応じてstoreから現在値を取得"""
-        state = self.store.get_current_state()
-        self.counter_label.config(text=str(state.counter))
-
-    def on_milestone(self, value: int):
-        messagebox.showinfo("マイルストーン!", f"{value} に到達しました！")
-
-    def open_subwindow(self) -> None:
-        """サブウィンドウを表示する。"""
+    def open_sub(self):
         self.pub_open_subwindow(SubWindow)
 
+    @make_async_task
+    async def save_data(self):
+        filename = filedialog.asksaveasfilename(defaultextension=".json")
+        if filename:
+            await asyncio.sleep(0.3)  # 保存処理シミュレート
+            state = self.store.get_current_state()
+            with open(filename, "w") as f:
+                json.dump(state.model_dump(), f, indent=2)
+            messagebox.showinfo("完了", "データを保存しました")
 
-# サブウィンドウ用コンテナ
+    @make_async_task
+    async def load_data(self):
+        filename = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
+        if filename:
+            await asyncio.sleep(0.3)  # 読込処理シミュレート
+            with open(filename, "r") as f:
+                data = json.load(f)
+            new_state = AppState.model_validate(data)
+            self.pub_replace_state(new_state)
+            # 状態リセット後は画面も適切に切り替える
+            self.pub_switch_slot("main", MainContainer)
+            messagebox.showinfo("完了", "データを読み込みました")
+
+    def add_setting(self):
+        key = simpledialog.askstring("設定追加", "キーを入力:")
+        if key:
+            value = simpledialog.askstring("設定追加", "値を入力:")
+            if value:
+                # pub_add_to_dict使用
+                self.pub_add_to_dict(self.store.state.settings, key, value)
+
+    @make_async_task
+    async def add_processor(self):
+        await asyncio.sleep(0.5)  # プロセッサー初期化シミュレート
+        try:
+            # pub_register_processor使用
+            self.pub_register_processor(DummyProcessor, "dummy")
+            messagebox.showinfo("成功", "プロセッサーを追加しました")
+        except Exception as e:
+            messagebox.showerror("エラー", str(e))
+
+    @make_async_task
+    async def reset_all(self):
+        if messagebox.askyesno("確認", "全状態をリセットしますか？"):
+            await asyncio.sleep(1.0)  # 重い処理シミュレート
+            # pub_replace_state使用
+            self.pub_replace_state(AppState())
+            # リセット後はメイン画面に戻る
+            self.pub_switch_slot("main", MainContainer)
+            messagebox.showinfo("完了", "状態をリセットしました")
+
+    def on_milestone(self, value: int):
+        messagebox.showinfo("マイルストーン!", f"{value}に到達！")
+
+
+class TodoContainer(ContainerComponentTk[AppState]):
+    def setup_ui(self):
+        tk.Label(self, text="📝 Todo管理", font=("Arial", 16, "bold")).pack(pady=10)
+
+        # Todo追加
+        add_frame = tk.Frame(self)
+        add_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        self.entry = tk.Entry(add_frame)
+        self.entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        self.entry.bind("<Return>", lambda e: self.add_todo())
+
+        tk.Button(add_frame, text="追加", command=self.add_todo).pack(side=tk.RIGHT)
+
+        # Todoリスト
+        list_frame = tk.Frame(self, relief=tk.SUNKEN, borderwidth=2)
+        list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # スクロール可能フレーム
+        canvas = tk.Canvas(list_frame)
+        scrollbar = tk.Scrollbar(list_frame, orient="vertical", command=canvas.yview)
+        self.scrollable_frame = tk.Frame(canvas)
+
+        self.scrollable_frame.bind(
+            "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        self.todo_widgets = {}
+
+    def setup_subscriptions(self):
+        # sub_state_addedとsub_for_refresh使用
+        self.sub_state_added(self.store.state.todos, self.on_todo_added)
+        self.sub_for_refresh(self.store.state.todos, self.refresh_todo_list)
+
+    def refresh_from_state(self):
+        self.refresh_todo_list()
+
+    def refresh_todo_list(self):
+        # 既存ウィジェットクリア
+        for widget in self.todo_widgets.values():
+            widget.destroy()
+        self.todo_widgets.clear()
+
+        # 新しいリストを描画
+        state = self.store.get_current_state()
+        for todo in state.todos:
+            todo_widget = TodoItemView(self.scrollable_frame)
+            todo_widget.pack(fill=tk.X, padx=5, pady=2)
+            todo_widget.update_data(todo)
+
+            # イベントハンドラ登録
+            todo_widget.register_handler("toggle", self.toggle_todo)
+            todo_widget.register_handler("delete", self.delete_todo)
+
+            self.todo_widgets[todo.id] = todo_widget
+
+    def on_todo_added(self, item: TodoItem, index: int):
+        # 新規追加時は全体再描画
+        self.refresh_todo_list()
+
+    def add_todo(self):
+        text = self.entry.get().strip()
+        if not text:
+            return
+
+        state = self.store.get_current_state()
+        new_todo = TodoItem(id=state.next_todo_id, text=text)
+
+        # pub_add_to_list使用
+        self.pub_add_to_list(self.store.state.todos, new_todo)
+        self.pub_update_state(self.store.state.next_todo_id, state.next_todo_id + 1)
+
+        self.entry.delete(0, tk.END)
+
+    def toggle_todo(self, todo_id: int):
+        state = self.store.get_current_state()
+        updated_todos = []
+        for todo in state.todos:
+            if todo.id == todo_id:
+                updated = todo.model_copy()
+                updated.completed = not updated.completed
+                updated_todos.append(updated)
+            else:
+                updated_todos.append(todo)
+
+        self.pub_update_state(self.store.state.todos, updated_todos)
+
+    @make_async_task
+    async def delete_todo(self, todo_id: int):
+        if messagebox.askyesno("確認", "このTodoを削除しますか？"):
+            await asyncio.sleep(0.2)  # 削除処理シミュレート
+            state = self.store.get_current_state()
+            updated_todos = [t for t in state.todos if t.id != todo_id]
+            self.pub_update_state(self.store.state.todos, updated_todos)
+
+
+class SidebarContainer(ContainerComponentTk[AppState]):
+    def setup_ui(self):
+        self.configure(bg="lightgray")
+
+        # 統計表示（Presentationalコンポーネント使用）
+        self.stats_view = StatsView(self)
+        self.stats_view.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # 操作ボタン
+        btn_frame = tk.Frame(self, bg="lightgray")
+        btn_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        tk.Button(btn_frame, text="全ウィンドウ閉じる", command=self.close_all).pack(
+            fill=tk.X, pady=2
+        )
+        tk.Button(btn_frame, text="プロセッサー削除", command=self.delete_proc).pack(
+            fill=tk.X, pady=2
+        )
+
+    def setup_subscriptions(self):
+        # 複数の状態変更を監視
+        self.sub_for_refresh(self.store.state.counter, self.refresh_from_state)
+        self.sub_for_refresh(self.store.state.todos, self.refresh_from_state)
+        self.sub_for_refresh(self.store.state.settings, self.refresh_from_state)
+        self.sub_for_refresh(self.store.state.total_clicks, self.refresh_from_state)
+        self.sub_for_refresh(self.store.state.current_view, self.refresh_from_state)
+        # sub_dict_item_added使用
+        self.sub_dict_item_added(self.store.state.settings, self.on_setting_added)
+
+    def refresh_from_state(self):
+        state = self.store.get_current_state()
+        # Containerで状態から必要な値を抽出してPresentationalに渡す
+        completed_todos = sum(1 for t in state.todos if t.completed)
+        total_todos = len(state.todos)
+
+        self.stats_view.update_stats(
+            counter=state.counter,
+            total_clicks=state.total_clicks,
+            total_todos=total_todos,
+            completed_todos=completed_todos,
+            settings_count=len(state.settings),
+            current_view=state.current_view,
+        )
+
+    def on_setting_added(self, key: str, value: str):
+        messagebox.showinfo("設定追加", f"設定追加: {key} = {value}")
+
+    def close_all(self):
+        # pub_close_all_subwindows使用
+        self.pub_close_all_subwindows()
+
+    def delete_proc(self):
+        try:
+            # pub_delete_processor使用
+            self.pub_delete_processor("dummy")
+            messagebox.showinfo("成功", "プロセッサーを削除しました")
+        except KeyError:
+            messagebox.showerror("エラー", "プロセッサーが見つかりません")
+
+
+# =============================================================================
+# サブウィンドウ
+# =============================================================================
+
+
 class SubWindow(ContainerComponentTk[AppState]):
-    """単純なサブウィンドウ。"""
+    def setup_ui(self):
+        tk.Label(self, text="🔢 サブウィンドウ", font=("Arial", 14)).pack(pady=10)
 
-    def setup_ui(self) -> None:
-        tk.Label(self, text="サブウィンドウです").pack(padx=20, pady=10)
+        self.value_label = tk.Label(self, text="0", font=("Arial", 20))
+        self.value_label.pack(pady=10)
+
+        btn_frame = tk.Frame(self)
+        btn_frame.pack(pady=10)
+
+        tk.Button(btn_frame, text="+1", command=self.increment).pack(
+            side=tk.LEFT, padx=5
+        )
+        tk.Button(btn_frame, text="+5", command=lambda: self.add_value(5)).pack(
+            side=tk.LEFT, padx=5
+        )
+
         tk.Button(self, text="閉じる", command=self.close_window).pack(pady=10)
 
     def setup_subscriptions(self):
-        pass
+        self.sub_state_changed(self.store.state.counter, self.on_counter_changed)
 
     def refresh_from_state(self):
-        pass
+        state = self.store.get_current_state()
+        self.value_label.config(text=str(state.counter))
 
-    def close_window(self) -> None:
-        """自身を閉じる。"""
+    def on_counter_changed(self, old_value, new_value):
+        self.value_label.config(text=str(new_value))
+
+    def increment(self):
+        self.publish(AppTopic.INCREMENT)
+
+    def add_value(self, value: int):
+        state = self.store.get_current_state()
+        new_value = state.counter + value
+        self.pub_update_state(self.store.state.counter, new_value)
+        self.pub_update_state(self.store.state.total_clicks, state.total_clicks + 1)
+
+    def close_window(self):
+        # pub_close_subwindow使用
         self.pub_close_subwindow(self.kwargs["win_id"])
 
 
-# Processor（ビジネスロジック）
-class CounterProcessor(ProcessorBase[AppState]):
+# =============================================================================
+# プロセッサー
+# =============================================================================
+
+
+class MainProcessor(ProcessorBase[AppState]):
     def setup_subscriptions(self):
         self.subscribe(AppTopic.INCREMENT, self.handle_increment)
         self.subscribe(AppTopic.RESET, self.handle_reset)
@@ -492,7 +837,6 @@ class CounterProcessor(ProcessorBase[AppState]):
         new_counter = state.counter + 1
         new_total = state.total_clicks + 1
 
-        # StateProxyで型安全な状態更新
         self.pub_update_state(self.store.state.counter, new_counter)
         self.pub_update_state(self.store.state.total_clicks, new_total)
 
@@ -501,24 +845,35 @@ class CounterProcessor(ProcessorBase[AppState]):
             self.publish(AppTopic.MILESTONE, value=new_counter)
 
     def handle_reset(self):
-        # 便利メソッドで状態リセット
         self.pub_update_state(self.store.state.counter, 0)
 
 
+class DummyProcessor(ProcessorBase[AppState]):
+    def setup_subscriptions(self):
+        print("DummyProcessor: 初期化されました")
+
+
+# =============================================================================
+# メインアプリケーション
+# =============================================================================
+
 if __name__ == "__main__":
-    app = TkApplication(AppState, title="PubSubTk Simple Demo", geometry="500x400")
-    # Processor登録
-    app.pub_register_processor(CounterProcessor)
+    app = TkApplication(AppState, title="🎯 PubSubTk Demo", geometry="800x600")
+
+    # メインプロセッサー登録
+    app.pub_register_processor(MainProcessor)
 
     # テンプレート設定
     app.set_template(AppTemplate)
 
-    # 各スロットにコンポーネント配置
-    app.pub_switch_slot("header", HeaderContainer)
-    app.pub_switch_slot("main", CounterContainer)
+    # 各スロットにコンテナ配置
+    app.pub_switch_slot("navbar", NavbarContainer)
+    app.pub_switch_slot("main", MainContainer)  # 初期画面
+    app.pub_switch_slot("sidebar", SidebarContainer)
 
     # 起動
     app.run(use_async=True)
+
 ```
 
 ---
@@ -1029,7 +1384,6 @@ Pydantic モデルを用いた型安全な状態管理を提供します。
 
 from typing import Any, Generic, Optional, Type, TypeVar, cast
 
-from pubsub import pub
 from pydantic import BaseModel
 
 from pubsubtk.core.pubsub_base import PubSubBase
@@ -1107,6 +1461,7 @@ class Store(PubSubBase, Generic[TState]):
 
     def setup_subscriptions(self):
         self.subscribe(DefaultUpdateTopic.UPDATE_STATE, self.update_state)
+        self.subscribe(DefaultUpdateTopic.REPLACE_STATE, self.replace_state)
         self.subscribe(DefaultUpdateTopic.ADD_TO_LIST, self.add_to_list)
         self.subscribe(DefaultUpdateTopic.ADD_TO_DICT, self.add_to_dict)
 
@@ -1190,7 +1545,7 @@ class Store(PubSubBase, Generic[TState]):
 
         index = len(new_list) - 1
 
-        pub.sendMessage(
+        self.publish(
             f"{DefaultUpdateTopic.STATE_ADDED}.{state_path}",
             item=item,
             index=index,
@@ -1217,7 +1572,7 @@ class Store(PubSubBase, Generic[TState]):
 
         self._validate_and_set_value(target_obj, attr_name, new_dict)
 
-        pub.sendMessage(
+        self.publish(
             f"{DefaultUpdateTopic.DICT_ADDED}.{state_path}",
             key=key,
             value=value,
@@ -1307,7 +1662,6 @@ def get_store(state_cls: Type[TState]) -> Store[TState]:
                 f"Store は既に {existing!r} で生成されています（呼び出し時の state_cls={state_cls!r}）"
             )
     return cast(Store[TState], _store)
-
 
 ```
 
