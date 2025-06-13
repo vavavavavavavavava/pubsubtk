@@ -41,7 +41,7 @@ nav:
   - Examples: examples.md
   - API Reference:
     - Overview: api/index.md
-    - api/
+    - Include: api/
 
 # プラグイン設定
 plugins:

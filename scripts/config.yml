@@ -2,9 +2,9 @@
 
 # テンプレートファイルの場所
 templates:
-  common: "docs/templates/common.md"
-  full: "docs/templates/full_suffix.md"
-  short: "docs/templates/short_suffix.md"
+  common: "scripts/templates/common.md"
+  full: "scripts/templates/full_suffix.md"
+  short: "scripts/templates/short_suffix.md"
 
 # ソースコードセクション設定
 source_code_sections:

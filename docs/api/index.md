@@ -8,88 +8,41 @@ PubSubTkは以下のモジュールで構成されています：
 
 ### Core Modules
 
-- **[pubsubtk.core](core/)** - PubSubパターンの基底クラス群
-  - `PubSubBase` - PubSub機能の基底クラス
-  - `PubSubDefaultTopicBase` - デフォルトトピック操作用便利メソッド
+- **pubsubtk.core** - PubSubパターンの基底クラス群
+  - [`PubSubBase`](pubsubtk/core/pubsub_base/) - PubSub機能の基底クラス
+  - [`PubSubDefaultTopicBase`](pubsubtk/core/default_topic_base/) - デフォルトトピック操作用便利メソッド
 
-- **[pubsubtk.store](store/)** - 状態管理システム
-  - `Store` - Pydanticベースの型安全な状態管理
-  - `StateProxy` - IDE連携を強化するプロキシクラス
+- **pubsubtk.store** - 状態管理システム
+  - [`Store`](pubsubtk/store/store/#pubsubtk.store.store.Store) - Pydanticベースの型安全な状態管理
+  - [`StateProxy`](pubsubtk/store/store/#pubsubtk.store.store.StateProxy) - IDE連携を強化するプロキシクラス
 
-- **[pubsubtk.topic](topic/)** - トピック定義システム
-  - `AutoNamedTopic` - 自動命名トピック列挙型
-  - `DefaultNavigateTopic` - 画面遷移用標準トピック
-  - `DefaultUpdateTopic` - 状態更新用標準トピック
+- **pubsubtk.topic** - トピック定義システム
+  - [`AutoNamedTopic`](pubsubtk/topic/topics/#pubsubtk.topic.topics.AutoNamedTopic) - 自動命名トピック列挙型
+  - [`DefaultNavigateTopic`](pubsubtk/topic/topics/#pubsubtk.topic.topics.DefaultNavigateTopic) - 画面遷移用標準トピック
+  - [`DefaultUpdateTopic`](pubsubtk/topic/topics/#pubsubtk.topic.topics.DefaultUpdateTopic) - 状態更新用標準トピック
+  - [`DefaultProcessorTopic`](pubsubtk/topic/topics/#pubsubtk.topic.topics.DefaultProcessorTopic) - プロセッサ管理トピック
 
 ### Application Framework
 
-- **[pubsubtk.app](app/)** - アプリケーション基底クラス
-  - `TkApplication` - 標準Tkアプリケーション
-  - `ThemedApplication` - テーマ対応アプリケーション
+- **pubsubtk.app** - アプリケーション基底クラス
+  - [`TkApplication`](pubsubtk/app/application_base/#pubsubtk.app.application_base.TkApplication) - 標準Tkアプリケーション
+  - [`ThemedApplication`](pubsubtk/app/application_base/#pubsubtk.app.application_base.ThemedApplication) - テーマ対応アプリケーション
 
-- **[pubsubtk.processor](processor/)** - ビジネスロジック層
-  - `ProcessorBase` - プロセッサー基底クラス
+- **pubsubtk.processor** - ビジネスロジック層
+  - [`ProcessorBase`](pubsubtk/processor/processor_base/) - プロセッサー基底クラス
 
 ### UI Components
 
-- **[pubsubtk.ui](ui/)** - UIコンポーネント群
-  - `ContainerComponentTk/Ttk` - 状態連携UIコンテナ
-  - `PresentationalComponentTk/Ttk` - 純粋表示コンポーネント
-  - `TemplateComponentTk/Ttk` - マルチスロットテンプレート
+- **pubsubtk.ui** - UIコンポーネント群
+  - [`ContainerComponentTk/Ttk`](pubsubtk/ui/base/container_base/#pubsubtk.ui.base.container_base.ContainerComponentTk) - 状態連携UIコンテナ
+  - [`PresentationalComponentTk/Ttk`](pubsubtk/ui/base/presentational_base/#pubsubtk.ui.base.presentational_base.PresentationalComponentTk) - 純粋表示コンポーネント
+  - [`TemplateComponentTk/Ttk`](pubsubtk/ui/base/template_base/#pubsubtk.ui.base.template_base.TemplateComponentTk) - マルチスロットテンプレート
 
 ### Utilities
 
-- **[pubsubtk.utils](utils/)** - ユーティリティ関数
-  - `make_async` - 非同期化デコレーター
-  - `make_async_task` - タスク化デコレーター
-
-## 🎯 主要クラス階層
-
-```mermaid
-classDiagram
-    class PubSubBase {
-        +subscribe(topic, handler)
-        +publish(topic, **kwargs)
-        +unsubscribe(topic, handler)
-        +teardown()
-    }
-    
-    class PubSubDefaultTopicBase {
-        +pub_switch_container()
-        +pub_update_state()
-        +sub_state_changed()
-        +sub_for_refresh()
-    }
-    
-    class Store {
-        +get_current_state()
-        +update_state()
-        +add_to_list()
-        +state: StateProxy
-    }
-    
-    class ContainerMixin {
-        +setup_ui()
-        +setup_subscriptions()
-        +refresh_from_state()
-    }
-    
-    class PresentationalMixin {
-        +setup_ui()
-        +register_handler()
-        +trigger_event()
-    }
-    
-    PubSubBase <|-- PubSubDefaultTopicBase
-    PubSubDefaultTopicBase <|-- Store
-    PubSubDefaultTopicBase <|-- ContainerMixin
-    PubSubDefaultTopicBase <|-- ProcessorBase
-    
-    ContainerMixin <|-- ContainerComponentTk
-    ContainerMixin <|-- ContainerComponentTtk
-    PresentationalMixin <|-- PresentationalComponentTk
-    PresentationalMixin <|-- PresentationalComponentTtk
-```
+- **pubsubtk.utils** - ユーティリティ関数
+  - [`make_async`](pubsubtk/utils/async_utils/#pubsubtk.utils.async_utils.make_async) - 非同期化デコレーター
+  - [`make_async_task`](pubsubtk/utils/async_utils/#pubsubtk.utils.async_utils.make_async_task) - タスク化デコレーター
 
 ## 🚀 クイックナビゲーション
 
@@ -97,11 +50,11 @@ classDiagram
 
 | クラス | 用途 | ドキュメント |
 |--------|------|-------------|
-| `TkApplication` | アプリケーション本体 | [app.TkApplication](app/#pubsubtk.app.TkApplication) |
-| `ContainerComponentTk` | 状態連携UI | [ui.ContainerComponentTk](ui/#pubsubtk.ui.ContainerComponentTk) |
-| `PresentationalComponentTk` | 純粋表示UI | [ui.PresentationalComponentTk](ui/#pubsubtk.ui.PresentationalComponentTk) |
-| `ProcessorBase` | ビジネスロジック | [processor.ProcessorBase](processor/#pubsubtk.processor.ProcessorBase) |
-| `Store` | 状態管理 | [store.Store](store/#pubsubtk.store.Store) |
+| `TkApplication` | アプリケーション本体 | [pubsubtk.app](pubsubtk/app/) |
+| `ContainerComponentTk` | 状態連携UI | [pubsubtk.ui](pubsubtk/ui/) |
+| `PresentationalComponentTk` | 純粋表示UI | [pubsubtk.ui](pubsubtk/ui/) |
+| `ProcessorBase` | ビジネスロジック | [pubsubtk.processor](pubsubtk/processor/) |
+| `Store` | 状態管理 | [pubsubtk.store](pubsubtk/store/) |
 
 ### よく使用されるメソッド
 
