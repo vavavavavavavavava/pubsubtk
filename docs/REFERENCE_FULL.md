@@ -1,39 +1,4 @@
-# PubSubTk ライブラリ - 完全リファレンスガイド
-
-## 目次
-
-- [PubSubTk ライブラリ - 完全リファレンスガイド](#pubsubtk-ライブラリ---完全リファレンスガイド)
-  - [目次](#目次)
-  - [概要](#概要)
-  - [主な特徴](#主な特徴)
-  - [アーキテクチャ概要](#アーキテクチャ概要)
-    - [構造イメージ](#構造イメージ)
-    - [各コンポーネントの役割](#各コンポーネントの役割)
-  - [🎯 推奨インポートパターン](#-推奨インポートパターン)
-  - [主要メソッド一覧](#主要メソッド一覧)
-  - [開発のポイント](#開発のポイント)
-    - [StateProxyによるIDE連携](#stateproxyによるide連携)
-    - [コンポーネント設計指針](#コンポーネント設計指針)
-    - [カスタムトピック・PubSub拡張](#カスタムトピックpubsub拡張)
-    - [よくある問題と解決法](#よくある問題と解決法)
-  - [実践例](#実践例)
-    - [全機能を活用したシンプルなカウンターアプリ](#全機能を活用したシンプルなカウンターアプリ)
-  - [フルソースコード](#フルソースコード)
-    - [コアPubSubシステム](#コアpubsubシステム)
-      - [`src/pubsubtk/core/pubsub_base.py`](#srcpubsubtkcorepubsub_basepy)
-      - [`src/pubsubtk/core/default_topic_base.py`](#srcpubsubtkcoredefault_topic_basepy)
-    - [トピックシステム](#トピックシステム)
-      - [`src/pubsubtk/topic/topics.py`](#srcpubsubtktopictopicspy)
-    - [State管理](#state管理)
-      - [`src/pubsubtk/store/store.py`](#srcpubsubtkstorestorepy)
-    - [アプリケーションクラス](#アプリケーションクラス)
-      - [`src/pubsubtk/app/application_base.py`](#srcpubsubtkappapplication_basepy)
-    - [UIコンポーネント](#uiコンポーネント)
-      - [`src/pubsubtk/ui/base/container_base.py`](#srcpubsubtkuibasecontainer_basepy)
-      - [`src/pubsubtk/ui/base/presentational_base.py`](#srcpubsubtkuibasepresentational_basepy)
-      - [`src/pubsubtk/ui/base/template_base.py`](#srcpubsubtkuibasetemplate_basepy)
-    - [Processorシステム](#processorシステム)
-      - [`src/pubsubtk/processor/processor_base.py`](#srcpubsubtkprocessorprocessor_basepy)
+# PubSubTk ライブラリ - リファレンスガイド
 
 ## 概要
 
@@ -285,6 +250,8 @@ self.publish(DefaultUpdateTopic.UPDATE_STATE, state_path="count", new_value=42)
 ## 実践例
 
 ### 全機能を活用したシンプルなカウンターアプリ
+
+PubSubDefaultTopicBaseの全メソッドを使用した小規模なデモアプリケーション
 
 ```python
 """
@@ -873,7 +840,6 @@ if __name__ == "__main__":
 
     # 起動
     app.run(use_async=True)
-
 ```
 
 ---
@@ -883,6 +849,8 @@ if __name__ == "__main__":
 ### コアPubSubシステム
 
 #### `src/pubsubtk/core/pubsub_base.py`
+
+PubSubパターンの基底クラス
 
 ```python
 # pubsub_base.py - PubSub 基底クラス
@@ -1008,11 +976,11 @@ def disable_pubsub_debug_logging() -> None:
     """
     _pubsub_logger.setLevel(logging.WARNING)
     _pubsub_logger.debug("PubSub debug logging disabled")
-
-
 ```
 
 #### `src/pubsubtk/core/default_topic_base.py`
+
+デフォルトトピック操作をまとめた基底クラス
 
 ```python
 # default_topic_base.py - デフォルトトピック操作をまとめた基底クラス
@@ -1289,13 +1257,13 @@ class PubSubDefaultTopicBase(PubSubBase):
             f"{DefaultUpdateTopic.DICT_ADDED}.{str(state_path)}",
             handler,
         )
-
-
 ```
 
 ### トピックシステム
 
 #### `src/pubsubtk/topic/topics.py`
+
+PubSub トピック列挙型の定義
 
 ```python
 # topics.py - PubSub トピック列挙型の定義
@@ -1365,13 +1333,13 @@ class DefaultProcessorTopic(AutoNamedTopic):
 
     REGISTER_PROCESSOR = auto()
     DELETE_PROCESSOR = auto()
-
-
 ```
 
 ### State管理
 
 #### `src/pubsubtk/store/store.py`
+
+Pydantic モデルを用いた型安全な状態管理
 
 ```python
 # store.py - アプリケーション状態を管理するクラス
@@ -1662,12 +1630,13 @@ def get_store(state_cls: Type[TState]) -> Store[TState]:
                 f"Store は既に {existing!r} で生成されています（呼び出し時の state_cls={state_cls!r}）"
             )
     return cast(Store[TState], _store)
-
 ```
 
-### アプリケーションクラス  
+### アプリケーションクラス
 
 #### `src/pubsubtk/app/application_base.py`
+
+Tkinter アプリケーション向けの共通基底クラス
 
 ```python
 # application_base.py - アプリケーションの基底クラスを定義
@@ -2052,12 +2021,13 @@ class ThemedApplication(ApplicationCommon[TState], ThemedTk, Generic[TState]):
         ApplicationCommon.__init__(self, state_cls)
         # then common setup
         self.init_common(title, geometry)
-
 ```
 
 ### UIコンポーネント
 
 #### `src/pubsubtk/ui/base/container_base.py`
+
+状態連携可能な UI コンテナの基底クラス
 
 ```python
 """
@@ -2171,10 +2141,11 @@ class ContainerComponentTtk(ContainerMixin[TState], ttk.Frame, Generic[TState]):
 
         ttk.Frame.__init__(self, master=parent)
         ContainerMixin.__init__(self, store=store, *args, **kwargs)
-
 ```
 
 #### `src/pubsubtk/ui/base/presentational_base.py`
+
+イベント発火機能を備えた表示専用 UI コンポーネント基底クラス
 
 ```python
 """
@@ -2252,10 +2223,11 @@ class PresentationalComponentTtk(PresentationalMixin, ttk.Frame):
 
         ttk.Frame.__init__(self, master=parent)
         PresentationalMixin.__init__(self, *args, **kwargs)
-
 ```
 
 #### `src/pubsubtk/ui/base/template_base.py`
+
+複数スロットを持つテンプレート UI 基底クラス
 
 ```python
 # template_base.py - テンプレートコンポーネントの基底クラス
@@ -2424,12 +2396,13 @@ class TemplateComponentTtk(TemplateMixin[TState], ttk.Frame, Generic[TState]):
 
         ttk.Frame.__init__(self, master=parent)
         TemplateMixin.__init__(self, store=store, *args, **kwargs)
-
 ```
 
 ### Processorシステム
 
 #### `src/pubsubtk/processor/processor_base.py`
+
+ビジネスロジックを担う Processor 用の抽象基底クラス
 
 ```python
 # processor_base.py - Processor の基底クラス
@@ -2456,5 +2429,4 @@ class ProcessorBase(PubSubDefaultTopicBase, Generic[TState]):
         self.store: Store[TState] = store
 
         super().__init__(*args, **kwargs)
-
 ```

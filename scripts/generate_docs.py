@@ -218,7 +218,7 @@ def copy_initial_files(project_root: Path):
 def main():
     parser = argparse.ArgumentParser(description="PubSubTk ドキュメント生成")
     parser.add_argument("--init", action="store_true", help="初期セットアップ")
-    parser.add_argument("--config", default="docs/config.yml", help="設定ファイル")
+    parser.add_argument("--config", default="scripts/config.yml", help="設定ファイル")
     parser.add_argument(
         "--full-output", default="docs/REFERENCE_FULL.md", help="FULL版出力先"
     )
