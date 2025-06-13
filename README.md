@@ -2,6 +2,8 @@
 
 **PubSubTk** は、イベント駆動＆状態管理型の Python GUIアプリケーションを、型安全かつ疎結合で構築できる軽量ライブラリです。
 
+**プロジェクトサイト:** [https://vavavavavavavavava.github.io/pubsubtk/](https://vavavavavavavavava.github.io/pubsubtk/)
+
 主な特徴：
 
 * **UIとビジネスロジックの疎結合** ― Publish/Subscribe（Pub/Sub）で部品間を非同期メッセージ連携
@@ -31,12 +33,10 @@ pip install git+https://github.com/vavavavavavavavava/pubsubtk
 
 ## 📖 リファレンス
 
-* [フルリファレンス（REFERENCE\_FULL.md）](docs/REFERENCE_FULL.md)
+* [フルリファレンス（REFERENCE_FULL.md）](docs/REFERENCE_FULL.md)
   └ 全コードと設計解説の完全版。
-* [ショートリファレンス（REFERENCE\_SHORT.md）](docs/REFERENCE_SHORT.md)
+* [ショートリファレンス（REFERENCE_SHORT.md）](docs/REFERENCE_SHORT.md)
   └ フルリファレンスからソースコードを除外した圧縮版
-
----
 
 **ChatGPT等でコード生成や設計相談をする際は、上記リファレンスを提示するとAIの理解度＆出力精度が大幅UPします！**
 
