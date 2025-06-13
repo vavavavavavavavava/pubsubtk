@@ -15,7 +15,7 @@
 ### インストール
 
 ```bash
-pip install git+https://github.com/yourusername/pubsubtk
+pip install git+https://github.com/vavavavavavavavava/pubsubtk
 ```
 
 ### 最小構成の例
@@ -120,7 +120,7 @@ self.pub_update_state(self.store.state.user.profile.name, "新しい名前")
 
 PubSubTkはオープンソースプロジェクトです。バグレポート・機能要望・プルリクエストを歓迎します！
 
-- **GitHub**: [https://github.com/yourusername/pubsubtk](https://github.com/yourusername/pubsubtk)
+- **GitHub**: [https://github.com/vavavavavavavavava/pubsubtk](https://github.com/yourusername/pubsubtk)
 - **Issues**: バグ報告・機能要望
 - **Discussions**: 質問・アイデア・情報交換
 

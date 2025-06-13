@@ -7,13 +7,13 @@ PubSubTkを使って、型安全で疎結合なGUIアプリケーション開発
 ### GitHubから直接インストール
 
 ```bash
-pip install git+https://github.com/yourusername/pubsubtk
+pip install git+https://github.com/vavavavavavavavava/pubsubtk
 ```
 
 ### 開発版（推奨）
 
 ```bash
-git clone https://github.com/yourusername/pubsubtk.git
+git clone https://github.com/vavavavavavavavava/pubsubtk.git
 cd pubsubtk
 pip install -e .
 ```
