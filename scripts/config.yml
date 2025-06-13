@@ -1,0 +1,51 @@
+# PubSubTk ドキュメント生成設定ファイル
+
+# テンプレートファイルの場所
+templates:
+  common: "scripts/templates/common.md"
+  full: "scripts/templates/full_suffix.md"
+  short: "scripts/templates/short_suffix.md"
+
+# ソースコードセクション設定
+source_code_sections:
+  - name: "コアPubSubシステム"
+    files:
+      - path: "src/pubsubtk/core/pubsub_base.py"
+        description: "PubSubパターンの基底クラス"
+      - path: "src/pubsubtk/core/default_topic_base.py"
+        description: "デフォルトトピック操作をまとめた基底クラス"
+
+  - name: "トピックシステム"
+    files:
+      - path: "src/pubsubtk/topic/topics.py"
+        description: "PubSub トピック列挙型の定義"
+
+  - name: "State管理"
+    files:
+      - path: "src/pubsubtk/store/store.py"
+        description: "Pydantic モデルを用いた型安全な状態管理"
+
+  - name: "アプリケーションクラス"
+    files:
+      - path: "src/pubsubtk/app/application_base.py"
+        description: "Tkinter アプリケーション向けの共通基底クラス"
+
+  - name: "UIコンポーネント"
+    files:
+      - path: "src/pubsubtk/ui/base/container_base.py"
+        description: "状態連携可能な UI コンテナの基底クラス"
+      - path: "src/pubsubtk/ui/base/presentational_base.py"
+        description: "イベント発火機能を備えた表示専用 UI コンポーネント基底クラス"
+      - path: "src/pubsubtk/ui/base/template_base.py"
+        description: "複数スロットを持つテンプレート UI 基底クラス"
+
+  - name: "Processorシステム"
+    files:
+      - path: "src/pubsubtk/processor/processor_base.py"
+        description: "ビジネスロジックを担う Processor 用の抽象基底クラス"
+
+# サンプルアプリケーション設定
+sample_apps:
+  - title: "全機能を活用したシンプルなカウンターアプリ"
+    path: "tests/sample_app/main.py"
+    description: "PubSubDefaultTopicBaseの全メソッドを使用した小規模なデモアプリケーション"

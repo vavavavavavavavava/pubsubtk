@@ -1,0 +1,29 @@
+name: Build & Deploy MkDocs
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install mkdocs mkdocs-material mkdocstrings[python] mkdocs-gen-files mkdocs-literate-nav pymdown-extensions pyyaml
+
+      - name: Generate AI Reference Docs
+        run: |
+          python scripts/generate_docs.py
+
+      - name: Build and Deploy
+        run: |
+          mkdocs gh-deploy --force
