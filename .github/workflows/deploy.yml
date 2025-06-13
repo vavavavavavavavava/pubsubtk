@@ -2,8 +2,7 @@ name: Build & Deploy MkDocs
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   build-deploy:
@@ -20,10 +19,11 @@ jobs:
         run: |
           pip install mkdocs mkdocs-material mkdocstrings[python] mkdocs-gen-files mkdocs-literate-nav pymdown-extensions pyyaml
 
+      - name: Install package (editable mode)
+        run: pip install -e .
+
       - name: Generate AI Reference Docs
-        run: |
-          python scripts/generate_docs.py
+        run: python scripts/generate_docs.py
 
       - name: Build and Deploy
-        run: |
-          mkdocs gh-deploy --force
+        run: mkdocs gh-deploy --force
