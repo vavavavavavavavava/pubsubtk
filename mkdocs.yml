@@ -36,12 +36,20 @@ theme:
 
 # ナビゲーション
 nav:
-  - Home: index.md
-  - Getting Started: getting-started.md
-  - Examples: examples.md
-  - API Reference:
-    - Overview: api/index.md
-    - Include: api/
+  - トップ: index.md
+  - はじめに: getting-started.md
+  - 実装レシピ集: cookbook.md
+  - サンプル集: examples.md
+  - FAQ: faq.md
+  - 開発者向け: dev.md
+  - APIリファレンス:
+    - 概要: api/index.md
+    - 詳細: api/
+  - AIリファレンス:
+    - REFERENCE_FULL: ai-reference/REFERENCE_FULL.md
+    - REFERENCE_SHORT: ai-reference/REFERENCE_SHORT.md
+
+
 
 # プラグイン設定
 plugins:
