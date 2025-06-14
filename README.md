@@ -33,9 +33,9 @@ pip install git+https://github.com/vavavavavavavavava/pubsubtk
 
 ## 📖 リファレンス
 
-* [フルリファレンス（REFERENCE_FULL.md）](docs/REFERENCE_FULL.md)
+* [フルリファレンス（REFERENCE_FULL.md）](docs/ai-reference/REFERENCE_FULL.md)
   └ 全コードと設計解説の完全版。
-* [ショートリファレンス（REFERENCE_SHORT.md）](docs/REFERENCE_SHORT.md)
+* [ショートリファレンス（REFERENCE_SHORT.md）](docs/ai-reference/REFERENCE_SHORT.md)
   └ フルリファレンスからソースコードを除外した圧縮版
 
 **ChatGPT等でコード生成や設計相談をする際は、上記リファレンスを提示するとAIの理解度＆出力精度が大幅UPします！**
