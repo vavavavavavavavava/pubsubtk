@@ -1,3 +1,6 @@
+{{VIEW_ON_GITHUB_BUTTON}}
+---
+
 # PubSubTk ライブラリ - リファレンスガイド
 
 ## 概要

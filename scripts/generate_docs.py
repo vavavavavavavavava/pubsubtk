@@ -59,7 +59,7 @@ class ReferenceGenerator:
 
     def __init__(self, config: DocumentConfig, project_root: Path):
         self.config = config
-        self.project_root = project_root
+        self.project_root = project_root.resolve()
 
     def read_file_safe(self, file_path: Path) -> str:
         """ファイルを安全に読み込み"""
@@ -81,7 +81,7 @@ class ReferenceGenerator:
                 current_section = section_name
 
             # ファイル見出し
-            full_path = self.project_root / file_path
+            full_path = (self.project_root / file_path).resolve()
             content.append(f"#### `{file_path}`")
             content.append("")
 
@@ -107,14 +107,16 @@ class ReferenceGenerator:
                 content.append(description)
                 content.append("")
 
-            full_path = self.project_root / file_path
+            full_path = (self.project_root / file_path).resolve()
             file_content = self.read_file_safe(full_path)
 
             content.extend(["```python", file_content.rstrip(), "```", ""])
 
         return "\n".join(content)
 
-    def process_template(self, template_content: str) -> str:
+    def process_template(
+        self, template_content: str, source_md_relpath: str = None
+    ) -> str:
         """テンプレート内のプレースホルダーを処理"""
 
         # {{SAMPLE_APPS}} を置換
@@ -131,20 +133,48 @@ class ReferenceGenerator:
                 "{{SOURCE_CODE}}", source_section
             )
 
+        # {{VIEW_ON_GITHUB_BUTTON}} を置換
+        if "{{VIEW_ON_GITHUB_BUTTON}}" in template_content:
+            # 例: ai-reference/REFERENCE_SHORT.md → https://github.com/<owner>/<repo>/blob/main/docs/ai-reference/REFERENCE_SHORT.md
+            if source_md_relpath:
+                github_url = f"https://github.com/vavavavavavavavava/pubsubtk/blob/main/docs/{source_md_relpath}"
+                button_html = (
+                    f'<a href="{github_url}" target="_blank" style="display:inline-block;'
+                    "background:#2962ff;color:#fff;border:none;border-radius:1.2em;"
+                    "box-shadow:0 2px 8px rgba(0,0,0,0.15);padding:0.7em 1.6em;"
+                    'font-size:1em;font-weight:bold;text-decoration:none;margin:1em 0;">'
+                    "このページのMarkdownを見る"
+                    "</a>\n"
+                )
+            else:
+                button_html = ""
+            template_content = template_content.replace(
+                "{{VIEW_ON_GITHUB_BUTTON}}", button_html
+            )
+
         return template_content
 
     def generate_reference(self, template_type: str, output_path: Path):
         """指定タイプのリファレンスを生成"""
 
+        # 絶対パスに変換
+        output_path = output_path.resolve()
+
         # 共通テンプレート読み込み
-        common_template_path = self.project_root / self.config.common_template
+        common_template_path = (
+            self.project_root / self.config.common_template
+        ).resolve()
         common_content = self.read_file_safe(common_template_path)
 
         # タイプ別テンプレート読み込み
         if template_type == "full":
-            type_template_path = self.project_root / self.config.full_template
+            type_template_path = (
+                self.project_root / self.config.full_template
+            ).resolve()
         elif template_type == "short":
-            type_template_path = self.project_root / self.config.short_template
+            type_template_path = (
+                self.project_root / self.config.short_template
+            ).resolve()
         else:
             raise ValueError(f"Unknown template type: {template_type}")
 
@@ -153,8 +183,18 @@ class ReferenceGenerator:
         # テンプレート結合
         full_template = common_content + "\n" + type_content
 
+        # docs/以下の相対パスを算出
+        docs_dir = (self.project_root / "docs").resolve()
+        try:
+            rel_md_path = str(output_path.relative_to(docs_dir))
+        except ValueError:
+            # 万一docs外ならファイル名だけにフォールバック
+            rel_md_path = output_path.name
+
         # プレースホルダー処理
-        final_content = self.process_template(full_template)
+        final_content = self.process_template(
+            full_template, source_md_relpath=rel_md_path
+        )
 
         # 出力
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -168,14 +208,14 @@ def copy_template_files(project_root: Path):
     """テンプレートファイルをコピー"""
 
     # スクリプトと同じディレクトリにあるテンプレートファイルを探す
-    script_dir = Path(__file__).parent
-    template_source_dir = script_dir / "templates"
+    script_dir = Path(__file__).parent.resolve()
+    template_source_dir = (script_dir / "templates").resolve()
 
     if not template_source_dir.exists():
         # フォールバック: プロジェクトルートからの相対パス
-        template_source_dir = project_root / "scripts" / "templates"
+        template_source_dir = (project_root / "scripts" / "templates").resolve()
 
-    target_dir = project_root / "docs" / "templates"
+    target_dir = (project_root / "docs" / "templates").resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
 
     template_files = ["common.md", "full_suffix.md", "short_suffix.md"]
@@ -194,11 +234,11 @@ def copy_template_files(project_root: Path):
 def copy_initial_files(project_root: Path):
     """初期ファイルをコピー"""
 
-    script_dir = Path(__file__).parent
+    script_dir = Path(__file__).parent.resolve()
 
     # config.yml のコピー
     config_source = script_dir / "config.yml"
-    config_target = project_root / "docs" / "config.yml"
+    config_target = (project_root / "docs" / "config.yml").resolve()
 
     if config_source.exists():
         config_target.parent.mkdir(parents=True, exist_ok=True)
@@ -207,7 +247,7 @@ def copy_initial_files(project_root: Path):
 
     # MkDocs API生成スクリプトのコピー
     gen_source = script_dir / "gen_ref_pages.py"
-    gen_target = project_root / "docs" / "gen_ref_pages.py"
+    gen_target = (project_root / "docs" / "gen_ref_pages.py").resolve()
 
     if gen_source.exists():
         gen_target.parent.mkdir(parents=True, exist_ok=True)
@@ -220,15 +260,22 @@ def main():
     parser.add_argument("--init", action="store_true", help="初期セットアップ")
     parser.add_argument("--config", default="scripts/config.yml", help="設定ファイル")
     parser.add_argument(
-        "--full-output", default="docs/REFERENCE_FULL.md", help="FULL版出力先"
+        "--full-output",
+        default="docs/ai-reference/REFERENCE_FULL.md",
+        help="FULL版出力先",
     )
     parser.add_argument(
-        "--short-output", default="docs/REFERENCE_SHORT.md", help="SHORT版出力先"
+        "--short-output",
+        default="docs/ai-reference/REFERENCE_SHORT.md",
+        help="SHORT版出力先",
     )
 
     args = parser.parse_args()
 
-    project_root = Path.cwd()
+    project_root = Path.cwd().resolve()
+    config_path = Path(args.config).resolve()
+    full_output_path = Path(args.full_output).resolve()
+    short_output_path = Path(args.short_output).resolve()
 
     # 初期セットアップ
     if args.init:
@@ -236,11 +283,10 @@ def main():
         copy_initial_files(project_root)
         copy_template_files(project_root)
         print("✅ 初期セットアップ完了!")
-        print(f"📝 設定ファイルを確認してください: {args.config}")
+        print(f"📝 設定ファイルを確認してください: {config_path}")
         return
 
     # 設定ファイル確認
-    config_path = Path(args.config)
     if not config_path.exists():
         print(f"❌ 設定ファイルが見つかりません: {config_path}")
         print("💡 --init で初期セットアップを実行してください")
@@ -252,10 +298,10 @@ def main():
     generator = ReferenceGenerator(config, project_root)
 
     # FULL版生成
-    generator.generate_reference("full", Path(args.full_output))
+    generator.generate_reference("full", full_output_path)
 
     # SHORT版生成
-    generator.generate_reference("short", Path(args.short_output))
+    generator.generate_reference("short", short_output_path)
 
     print("🎉 ドキュメント生成完了!")
 
