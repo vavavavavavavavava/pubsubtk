@@ -46,10 +46,15 @@ if __name__ == "__main__":
 
 ```mermaid
 graph LR
-    Store[Store<br>状態管理] --> Container[Container<br>状態連携UI]
-    Container --> Presentational[Presentational<br>純粋表示]
-    Container --> Processor[Processor<br>ビジネスロジック]
+    Store[Store<br/>状態管理] --> Container[Container<br/>状態連携UI]
+    Container --> Presentational[Presentational<br/>純粋表示]
+    Container --> Processor[Processor<br/>ビジネスロジック]
     Processor --> Store
+    
+    style Store fill:#e1f5fe
+    style Container fill:#f3e5f5
+    style Presentational fill:#e8f5e8
+    style Processor fill:#fff3e0
 ```
 
 ## 📚 まず読む
