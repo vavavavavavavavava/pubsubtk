@@ -76,3 +76,4 @@ class DefaultUndoTopic(AutoNamedTopic):
     DISABLE_UNDO_REDO = auto()
     UNDO = auto()
     REDO = auto()
+    STATUS_CHANGED = auto()

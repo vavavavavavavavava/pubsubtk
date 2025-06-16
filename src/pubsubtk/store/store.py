@@ -34,13 +34,11 @@ class StateProxy(Generic[TState]):
             store: 値を参照する対象 ``Store``。
             path: 現在のパス文字列。
         """
-
         self._store = store
         self._path = path
 
     def __getattr__(self, name: str) -> "StateProxy[TState]":
         """属性アクセスを連結した ``StateProxy`` を返す。"""
-
         new_path = f"{self._path}.{name}" if self._path else name
 
         # 存在チェック：TState モデルに new_path が通るか確認
@@ -55,7 +53,6 @@ class StateProxy(Generic[TState]):
 
     def __repr__(self) -> str:
         """パス文字列を返す。"""
-
         return f"{self._path}"
 
     __str__ = __repr__
@@ -68,9 +65,7 @@ class Store(PubSubBase, Generic[TState]):
     - Pydanticモデルを状態として保持し、状態操作を提供
     - get_current_state()で状態のディープコピーを取得
     - update_state()/add_to_list()/add_to_dict()で状態を更新し、PubSubで通知
-    - `store.state.count` のようなパスプロキシを使うことで、
-      `store.update_state(store.state.count, 1)` のようにIDEの「定義へ移動」や補完機能を活用しつつ、
-      状態更新のパスを安全・明示的に指定できる（従来の文字列パス指定の弱点を解消）
+    - Undo/Redo 機能を提供
     """
 
     def __init__(self, initial_state_class: Type[TState]):
@@ -151,10 +146,10 @@ class Store(PubSubBase, Generic[TState]):
         """
         target_obj, attr_name, old_value = self._resolve_path(str(state_path))
 
-        # Undo履歴をキャプチャ（既存の値を記録）
+        # Undo履歴をキャプチャ
         self._capture_for_undo(str(state_path), old_value)
 
-        # 新しい値を設定する前に型チェック
+        # 型チェック後に設定
         self._validate_and_set_value(target_obj, attr_name, new_value)
 
         # 詳細な変更通知（old_value, new_valueを含む）
@@ -163,62 +158,41 @@ class Store(PubSubBase, Generic[TState]):
             old_value=old_value,
             new_value=new_value,
         )
-
-        # シンプルな更新通知（引数なし）
+        # シンプルな更新通知
         self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
     def add_to_list(self, state_path: str, item: Any) -> None:
-        """リスト属性に要素を追加し、追加通知を送信する。
-
-        Args:
-            state_path: 追加先となるリストの属性パス。
-            item: 追加する要素。
-        """
+        """リスト属性に要素を追加し、追加通知を送信する。"""
         target_obj, attr_name, current_list = self._resolve_path(str(state_path))
-
         if not isinstance(current_list, list):
             raise TypeError(f"Property at '{state_path}' is not a list")
 
-        # Undo履歴をキャプチャ（既存のリストを記録）
+        # Undo履歴をキャプチャ
         self._capture_for_undo(str(state_path), current_list)
 
-        # リストをコピーして新しい要素を追加
         new_list = current_list.copy()
         new_list.append(item)
-
-        # 新しいリストで更新
         self._validate_and_set_value(target_obj, attr_name, new_list)
 
         index = len(new_list) - 1
-
         self.publish(
             f"{DefaultUpdateTopic.STATE_ADDED}.{state_path}",
             item=item,
             index=index,
         )
-
-        # リスト追加でも更新通知を送信
         self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
     def add_to_dict(self, state_path: str, key: str, value: Any) -> None:
-        """辞書属性に要素を追加し、追加通知を送信する。
-
-        Args:
-            state_path: 追加先となる辞書の属性パス。
-            key: 追加するキー。
-            value: 追加する値。
-        """
+        """辞書属性に要素を追加し、追加通知を送信する。"""
         target_obj, attr_name, current_dict = self._resolve_path(str(state_path))
-
         if not isinstance(current_dict, dict):
             raise TypeError(f"Property at '{state_path}' is not a dict")
 
-        # Undo履歴をキャプチャ（既存の辞書を記録）
+        # Undo履歴をキャプチャ
         self._capture_for_undo(str(state_path), current_dict)
 
         new_dict = current_dict.copy()
         new_dict[key] = value
-
         self._validate_and_set_value(target_obj, attr_name, new_dict)
 
         self.publish(
@@ -226,150 +200,130 @@ class Store(PubSubBase, Generic[TState]):
             key=key,
             value=value,
         )
-
-        # 辞書追加でも更新通知を送信
         self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
     # --- Undo/Redo 履歴管理機能 ---
 
     def _enable_undo_redo(self, state_path: str, max_history: int = 10) -> None:
-        """指定パスのUndo/Redo機能を有効化し、現在の値を初期スナップショットとして記録する。
-
-        Args:
-            state_path: 追跡対象の状態パス
-            max_history: 保持する履歴の最大数（デフォルト: 10）
-        """
+        """Undo/Redoを有効化し、初回スナップショットとして現在値を記録。"""
         self._undo_enabled.add(state_path)
         self._max_histories[state_path] = max_history
 
-        # 現在の値を初期スナップショットとして記録
         try:
             _, _, current_value = self._resolve_path(state_path)
             self._undo_stacks[state_path] = [copy.deepcopy(current_value)]
-            self._redo_stacks[state_path].clear()
         except (AttributeError, ValueError):
-            # パスが存在しない場合は空の履歴で開始
             self._undo_stacks[state_path] = []
-            self._redo_stacks[state_path].clear()
+        self._redo_stacks[state_path].clear()
+
+        # UI用ステータス通知
+        self._emit_ur_status(state_path)
 
     def _disable_undo_redo(self, state_path: str) -> None:
-        """指定パスのUndo/Redo機能を無効化し、履歴データを削除する。
-
-        Args:
-            state_path: 無効化する状態パス
-        """
+        """Undo/Redoを無効化し、履歴を破棄。"""
         self._undo_enabled.discard(state_path)
         self._undo_stacks.pop(state_path, None)
         self._redo_stacks.pop(state_path, None)
         self._max_histories.pop(state_path, None)
 
-    def _capture_for_undo(self, state_path: str, old_value: Any) -> None:
-        """状態変更前に古い値をUndo履歴に記録する。
+        # UI用ステータス通知
+        self._emit_ur_status(state_path)
 
-        Args:
-            state_path: 変更対象の状態パス
-            old_value: 変更前の値
-        """
-        # Undo/Redo対象でない、またはUndo/Redo操作中の場合はスキップ
+    def _capture_for_undo(self, state_path: str, old_value: Any) -> None:
+        """状態変更前に履歴を記録し、Redo履歴をクリア。"""
         if state_path not in self._undo_enabled or self._during_ur_op:
             return
 
         stack = self._undo_stacks[state_path]
         stack.append(copy.deepcopy(old_value))
 
-        # 履歴上限の管理
         max_len = self._max_histories.get(state_path, 10)
         if len(stack) > max_len:
-            stack.pop(0)  # 最古の履歴を削除
+            stack.pop(0)
 
-        # 新しい変更が発生したのでRedo履歴をクリア
         self._redo_stacks[state_path].clear()
 
-    def _undo(self, state_path: str) -> None:
-        """指定パスの状態を1つ前の値に戻す。
+        # UI用ステータス通知
+        self._emit_ur_status(state_path)
 
-        Args:
-            state_path: Undoを実行する状態パス
-        """
+    def _undo(self, state_path: str) -> None:
+        """1つ前の値に戻す。"""
         if state_path not in self._undo_enabled:
             return
-
         undo_stack = self._undo_stacks[state_path]
-        if len(undo_stack) < 2:  # 現在値 + 少なくとも1つの履歴が必要
+        if len(undo_stack) < 2:
             return
 
-        # 現在の値をRedo履歴に保存
         try:
             _, _, current_value = self._resolve_path(state_path)
             self._redo_stacks[state_path].append(copy.deepcopy(current_value))
         except (AttributeError, ValueError):
             return
 
-        # 最新の履歴値を取得（現在値の1つ前）
-        self._during_ur_op = True  # 再帰防止フラグを設定
+        self._during_ur_op = True
         try:
-            undo_stack.pop()  # 現在値を削除
-            previous_value = undo_stack[-1]  # 1つ前の値を取得（スタックには残す）
-            self.update_state(state_path, previous_value)
+            undo_stack.pop()
+            prev = undo_stack[-1]
+            self.update_state(state_path, prev)
         finally:
             self._during_ur_op = False
 
-    def _redo(self, state_path: str) -> None:
-        """指定パスのUndoを取り消し、Redoを実行する。
+        # UI用ステータス通知
+        self._emit_ur_status(state_path)
 
-        Args:
-            state_path: Redoを実行する状態パス
-        """
+    def _redo(self, state_path: str) -> None:
+        """Redo履歴を適用する。"""
         if state_path not in self._undo_enabled:
             return
-
         redo_stack = self._redo_stacks[state_path]
         if not redo_stack:
             return
 
-        # 現在の値をUndo履歴に保存
         try:
             _, _, current_value = self._resolve_path(state_path)
             self._undo_stacks[state_path].append(copy.deepcopy(current_value))
         except (AttributeError, ValueError):
             return
 
-        # Redo値を取得して適用
-        self._during_ur_op = True  # 再帰防止フラグを設定
+        self._during_ur_op = True
         try:
-            redo_value = redo_stack.pop()
-            self.update_state(state_path, redo_value)
+            next_val = redo_stack.pop()
+            self.update_state(state_path, next_val)
         finally:
             self._during_ur_op = False
+
+        # UI用ステータス通知
+        self._emit_ur_status(state_path)
+
+    def _emit_ur_status(self, state_path: str) -> None:
+        """現在のUndo/Redo可否・スタックサイズを通知する."""
+        undo_stack = self._undo_stacks.get(state_path, [])
+        redo_stack = self._redo_stacks.get(state_path, [])
+        self.publish(
+            f"{DefaultUndoTopic.STATUS_CHANGED}.{state_path}",
+            can_undo=len(undo_stack) > 1,
+            can_redo=len(redo_stack) > 0,
+            undo_count=max(len(undo_stack) - 1, 0),
+            redo_count=len(redo_stack),
+        )
 
     def _resolve_path(self, path: str) -> tuple[Any, str, Any]:
         """
         属性パスを解決し、対象オブジェクト・属性名・現在値を返す。
-
-        Args:
-            path: 解析する属性パス。
-        Returns:
-            (対象オブジェクト, 属性名, 現在値)
         """
         segments = path.split(".")
-
         if not segments:
             raise ValueError("Empty path")
 
-        # 最後のセグメントを取り出し
         attr_name = segments[-1]
-
-        # 最後のセグメント以外のパスをたどって対象オブジェクトを取得
         current = self._state
         for segment in segments[:-1]:
             if not hasattr(current, segment):
                 raise AttributeError(f"No such attribute: {segment} in path {path}")
             current = getattr(current, segment)
 
-        # 現在の値を取得
         if not hasattr(current, attr_name):
             raise AttributeError(f"No such attribute: {attr_name} in path {path}")
-
         old_value = getattr(current, attr_name)
         return current, attr_name, old_value
 
@@ -377,40 +331,25 @@ class Store(PubSubBase, Generic[TState]):
         self, target_obj: Any, attr_name: str, new_value: Any
     ) -> None:
         """属性値を型検証してから設定する。"""
-        # Pydanticモデルの場合、フィールドの型情報を取得
         if isinstance(target_obj, BaseModel):
             model_fields = target_obj.__class__.model_fields
-
             if attr_name in model_fields:
                 field_info = model_fields[attr_name]
-
-                # もし新しい値がPydanticモデルの場合、model_validateを使用
                 if hasattr(new_value, "model_dump") and hasattr(
                     field_info.annotation, "model_validate"
                 ):
-                    field_type = field_info.annotation
-                    validated_value = field_type.model_validate(new_value)
-                    setattr(target_obj, attr_name, validated_value)
+                    validated = field_info.annotation.model_validate(new_value)
+                    setattr(target_obj, attr_name, validated)
                     return
+        setattr(target_obj, attr_name, new_value)
 
 
-
-# 実体としてはどんな State 型でも格納できるので Any
+# グローバルStoreシングルトン
 _store: Optional[Store[Any]] = None
 
 
 def get_store(state_cls: Type[TState]) -> Store[TState]:
-    """グローバルな ``Store`` インスタンスを取得する。
-
-    Args:
-        state_cls: ``Store`` 生成に使用する状態モデルの型。
-
-    Returns:
-        共有 ``Store`` インスタンス。
-
-    Raises:
-        RuntimeError: 既に別の ``state_cls`` で生成されている場合。
-    """
+    """グローバルな Store インスタンスを取得します。"""
     global _store
     if _store is None:
         _store = Store(state_cls)
@@ -418,6 +357,6 @@ def get_store(state_cls: Type[TState]) -> Store[TState]:
         existing = getattr(_store, "_state_class", None)
         if existing is not state_cls:
             raise RuntimeError(
-                f"Store は既に {existing!r} で生成されています（呼び出し時の state_cls={state_cls!r}）"
+                f"Store は既に {existing!r} で生成されています（state_cls={state_cls!r}）"
             )
     return cast(Store[TState], _store)
