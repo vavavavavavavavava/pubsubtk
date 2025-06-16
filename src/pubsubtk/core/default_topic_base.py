@@ -269,62 +269,63 @@ class PubSubDefaultTopicBase(PubSubBase):
     def sub_undo_status(
         self, state_path: str, handler: Callable[[bool, bool, int, int], None]
     ) -> None:
-        """指定したstate pathのUndo/Redo状態変化を購読する。
+        """
+        指定した state path の Undo/Redo 状態変化を購読する。
+
+        ハンドラー関数は以下の引数で呼び出されます：
+            - can_undo (bool): Undo 実行可能かどうか
+            - can_redo (bool): Redo 実行可能かどうか
+            - undo_count (int): 実行可能な Undo 回数
+            - redo_count (int): 実行可能な Redo 回数
 
         Args:
             state_path (str): 監視する状態パス
-            handler (Callable[[bool, bool, int, int], None]): 状態変化時に呼び出される関数。
-                can_undo, can_redo, undo_count, redo_countの4引数を取る
+            handler (Callable[[bool, bool, int, int], None]): 状態変化時に呼び出される関数
 
         Note:
-            **RECOMMENDED**: Use store.state proxy for consistent path specification:
-            `self.sub_undo_status(str(self.store.state.counter), self.on_undo_status_changed)`
-
-            ハンドラー関数は以下の引数で呼び出されます：
-            - can_undo (bool): Undo実行可能かどうか
-            - can_redo (bool): Redo実行可能かどうか
-            - undo_count (int): 実行可能なUndo回数
-            - redo_count (int): 実行可能なRedo回数
+            推奨: store.state プロキシを利用すると IDE 補完や一貫したパス指定が可能です。
+            例: `self.sub_undo_status(self.store.state.counter, self.on_undo_status_changed)`
         """
+
         self.subscribe(f"{DefaultUndoTopic.STATUS_CHANGED}.{str(state_path)}", handler)
 
     def sub_state_changed(
         self, state_path: str, handler: Callable[[Any, Any], None]
     ) -> None:
         """
-        状態が変更されたときの詳細通知を購読する。
+        状態が変更されたときの通知を購読する。
 
-        ハンドラー関数には、old_valueとnew_valueが渡されます。
+        ハンドラー関数は以下の引数で呼び出されます：
+            - old_value (Any): 変更前の値
+            - new_value (Any): 変更後の値
 
         Args:
             state_path (str): 監視する状態のパス（例: "user.name", "items[2].value"）
-            handler (Callable[[Any, Any], None]): 変更時に呼び出される関数。
-                old_valueとnew_valueの2引数を取る
+            handler (Callable[[Any, Any], None]): 変更時に呼び出される関数
 
         Note:
-            **RECOMMENDED**: Use store.state proxy for consistent path specification:
-            `self.sub_state_changed(str(self.store.state.user.name), self.on_name_changed)`
+            推奨: store.state プロキシを利用して一貫したパス指定が可能です。
+            例: `self.sub_state_changed(self.store.state.user.name, self.on_name_changed)`
         """
+
         self.subscribe(f"{DefaultUpdateTopic.STATE_CHANGED}.{str(state_path)}", handler)
 
     def sub_for_refresh(self, state_path: str, handler: Callable[[], None]) -> None:
         """
-        状態が更新されたときにUI再描画用のシンプルな通知を購読する。
+        状態が更新されたときのシンプルな通知（UI再描画用）を購読する。
 
-        ハンドラー関数は引数なしで呼び出され、ハンドラー内で必要に応じて
-        store.get_current_state()を使用して現在の状態を取得できます。
+        ハンドラー関数は以下の引数で呼び出されます：
+            - なし
 
         Args:
-            state_path (str): 監視する状態のパス（例: "user.name", "items[2].value"）
+            state_path (str): 監視する状態のパス
             handler (Callable[[], None]): 更新時に呼び出される引数なしの関数
 
         Note:
-            **RECOMMENDED**: Use store.state proxy for consistent path specification:
-            `self.sub_for_refresh(str(self.store.state.user.name), self.refresh_ui)`
-
-            このメソッドは、変更内容に関係なく「状態が変わったからUI更新」という
-            パターンに最適です。refresh_from_state()と同じロジックを使い回せます。
+            推奨: store.state プロキシを利用して一貫したパス指定が可能です。
+            例: `self.sub_for_refresh(self.store.state.user.name, self.refresh_ui)`
         """
+
         self.subscribe(f"{DefaultUpdateTopic.STATE_UPDATED}.{str(state_path)}", handler)
 
     def sub_state_added(
@@ -333,34 +334,40 @@ class PubSubDefaultTopicBase(PubSubBase):
         """
         リストに要素が追加されたときの通知を購読する。
 
-        ハンドラー関数には、itemとindexが渡されます。
+        ハンドラー関数は以下の引数で呼び出されます：
+            - item (Any): 追加されたアイテム
+            - index (int): 追加されたインデックス
 
         Args:
-            state_path (str): 監視するリスト状態のパス（例: "items", "user.tasks"）
-            handler (Callable[[Any, int], None]): 要素追加時に呼び出される関数。
-                追加されたアイテムとそのインデックスを引数に取る
+            state_path (str): 監視するリスト状態のパス
+            handler (Callable[[Any, int], None]): 要素追加時に呼び出される関数
 
         Note:
-            **RECOMMENDED**: Use store.state proxy for consistent path specification:
-            `self.sub_state_added(str(self.store.state.items), self.on_item_added)`
+            推奨: store.state プロキシを利用して一貫したパス指定が可能です。
+            例: `self.sub_state_added(self.store.state.items, self.on_item_added)`
         """
+
         self.subscribe(f"{DefaultUpdateTopic.STATE_ADDED}.{str(state_path)}", handler)
 
     def sub_dict_item_added(
         self, state_path: str, handler: Callable[[str, Any], None]
     ) -> None:
-        """辞書に要素が追加されたときの通知を購読する。
+        """
+        辞書に要素が追加されたときの通知を購読する。
 
-        ハンドラー関数には、キーと値が渡されます。
+        ハンドラー関数は以下の引数で呼び出されます：
+            - key (str): 追加されたキー
+            - value (Any): 追加された値
 
         Args:
-            state_path: 監視する辞書状態のパス。
-            handler: 追加されたキーと値を引数に取る関数。
+            state_path (str): 監視する辞書状態のパス
+            handler (Callable[[str, Any], None]): 追加されたキーと値を引数に取る関数
 
         Note:
-            **RECOMMENDED**: Use store.state proxy for consistent path specification:
-            `self.sub_dict_item_added(str(self.store.state.mapping), self.on_added)`
+            推奨: store.state プロキシを利用して一貫したパス指定が可能です。
+            例: `self.sub_dict_item_added(self.store.state.mapping, self.on_added)`
         """
+
         self.subscribe(
             f"{DefaultUpdateTopic.DICT_ADDED}.{str(state_path)}",
             handler,
