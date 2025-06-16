@@ -1,362 +1,367 @@
-# store.py - アプリケーション状態を管理するクラス
+# default_topic_base.py - デフォルトトピック操作をまとめた基底クラス
 
 """
-src/pubsubtk/store/store.py
+src/pubsubtk/core/default_topic_base.py
 
-Pydantic モデルを用いた型安全な状態管理を提供します。
+主要な PubSub トピックに対する便利メソッドを提供します。
 """
 
-import copy
-from collections import defaultdict
-from typing import Any, Generic, Optional, Type, TypeVar, cast
+from __future__ import annotations
 
-from pydantic import BaseModel
+from typing import TYPE_CHECKING, Any, Callable, Optional, Type
 
 from pubsubtk.core.pubsub_base import PubSubBase
-from pubsubtk.topic.topics import DefaultUndoTopic, DefaultUpdateTopic
+from pubsubtk.topic.topics import (
+    DefaultNavigateTopic,
+    DefaultProcessorTopic,
+    DefaultUndoTopic,
+    DefaultUpdateTopic,
+)
 
-TState = TypeVar("TState", bound=BaseModel)
+if TYPE_CHECKING:
+    # 型チェック時（mypy や IDE 補完時）のみ読み込む
+    from pubsubtk.processor.processor_base import ProcessorBase
+    from pubsubtk.ui.types import ComponentType, ContainerComponentType
 
 
-class StateProxy(Generic[TState]):
+class PubSubDefaultTopicBase(PubSubBase):
     """
-    Storeのstate属性に対する動的なパスアクセスを提供するプロキシ。
+    Built-in convenience methods for common PubSub operations.
 
-    - store.state.foo.bar のようなドット記法でネスト属性へアクセス可能
-    - 存在しない属性アクセス時は AttributeError を送出
-    - __repr__ でパス文字列を返す
+    **IMPORTANT**: Container and Processor components should use these built-in methods
+    instead of manually publishing to DefaultTopics. These methods are designed for
+    ease of use and provide better IDE support.
     """
 
-    def __init__(self, store: "Store[TState]", path: str = ""):
-        """StateProxy を初期化する。
+    def pub_switch_container(
+        self,
+        cls: ContainerComponentType,
+        kwargs: dict = None,
+    ) -> None:
+        """コンテナを切り替えるPubSubメッセージを送信する。
 
         Args:
-            store: 値を参照する対象 ``Store``。
-            path: 現在のパス文字列。
+            cls (ContainerComponentType): 切り替え先のコンテナコンポーネントクラス
+            kwargs: コンテナに渡すキーワード引数用辞書
+
+        Note:
+            コンテナは、TkApplicationまたはTtkApplicationのコンストラクタで指定された
+            親ウィジェットの子として配置されます。
         """
-        self._store = store
-        self._path = path
+        self.publish(DefaultNavigateTopic.SWITCH_CONTAINER, cls=cls, kwargs=kwargs)
 
-    def __getattr__(self, name: str) -> "StateProxy[TState]":
-        """属性アクセスを連結した ``StateProxy`` を返す。"""
-        new_path = f"{self._path}.{name}" if self._path else name
-
-        # 存在チェック：TState モデルに new_path が通るか確認
-        cur = self._store.get_current_state()
-        for seg in new_path.split("."):
-            if hasattr(cur, seg):
-                cur = getattr(cur, seg)
-            else:
-                raise AttributeError(f"No such property: store.state.{new_path}")
-
-        return StateProxy(self._store, new_path)
-
-    def __repr__(self) -> str:
-        """パス文字列を返す。"""
-        return f"{self._path}"
-
-    __str__ = __repr__
-
-
-class Store(PubSubBase, Generic[TState]):
-    """
-    型安全な状態管理を提供するジェネリックなStoreクラス。
-
-    - Pydanticモデルを状態として保持し、状態操作を提供
-    - get_current_state()で状態のディープコピーを取得
-    - update_state()/add_to_list()/add_to_dict()で状態を更新し、PubSubで通知
-    - Undo/Redo 機能を提供
-    """
-
-    def __init__(self, initial_state_class: Type[TState]):
-        """Store を初期化する。
+    def pub_switch_slot(
+        self,
+        slot_name: str,
+        cls: ComponentType,
+        kwargs: dict = None,
+    ) -> None:
+        """テンプレートの特定スロットのコンテンツを切り替える。
 
         Args:
-            initial_state_class: 管理対象となる ``BaseModel`` のサブクラス。
+            slot_name (str): スロット名
+            cls (ComponentType): コンテナまたはプレゼンテーショナルコンポーネントクラス
+            kwargs: コンポーネントに渡すキーワード引数用辞書
+
+        Note:
+            ContainerComponentとPresentationalComponentの両方に対応。
+            テンプレートが設定されていない場合はエラーになります。
         """
-        self._state_class = initial_state_class
-        self._state = initial_state_class()
+        self.publish(
+            DefaultNavigateTopic.SWITCH_SLOT,
+            slot_name=slot_name,
+            cls=cls,
+            kwargs=kwargs,
+        )
 
-        # Undo/Redo 履歴管理用フィールド
-        self._undo_enabled: set[str] = set()  # 追跡対象パス
-        self._undo_stacks: dict[str, list] = defaultdict(list)  # パス別Undoスタック
-        self._redo_stacks: dict[str, list] = defaultdict(list)  # パス別Redoスタック
-        self._max_histories: dict[str, int] = {}  # パス別履歴上限
-        self._during_ur_op: bool = False  # Undo/Redo操作中の再帰抑制フラグ
+    def pub_open_subwindow(
+        self,
+        cls: ComponentType,
+        win_id: Optional[str] = None,
+        kwargs: dict = None,
+    ) -> None:
+        """サブウィンドウを開くPubSubメッセージを送信する。
 
-        # PubSubBase.__init__()を呼び出して購読設定を有効化
-        super().__init__()
+        Args:
+            cls (ComponentType): サブウィンドウに表示するコンポーネントクラス
+            win_id (Optional[str], optional): サブウィンドウのID。
+                指定しない場合は自動生成される。
+                同じIDを指定すると、既存のウィンドウが再利用される。
+            kwargs: コンポーネントに渡すキーワード引数用辞書
 
-    def setup_subscriptions(self):
-        # 既存の状態更新系トピック
-        self.subscribe(DefaultUpdateTopic.UPDATE_STATE, self.update_state)
-        self.subscribe(DefaultUpdateTopic.REPLACE_STATE, self.replace_state)
-        self.subscribe(DefaultUpdateTopic.ADD_TO_LIST, self.add_to_list)
-        self.subscribe(DefaultUpdateTopic.ADD_TO_DICT, self.add_to_dict)
-
-        # Undo/Redo系トピック
-        self.subscribe(DefaultUndoTopic.ENABLE_UNDO_REDO, self._enable_undo_redo)
-        self.subscribe(DefaultUndoTopic.DISABLE_UNDO_REDO, self._disable_undo_redo)
-        self.subscribe(DefaultUndoTopic.UNDO, self._undo)
-        self.subscribe(DefaultUndoTopic.REDO, self._redo)
-
-    @property
-    def state(self) -> TState:
+        Note:
+            サブウィンドウは、Toplevel ウィジェットとして作成されます。
         """
-        状態への動的パスアクセス用プロキシを返す。
-        """
-        return cast(TState, StateProxy(self))
+        self.publish(
+            DefaultNavigateTopic.OPEN_SUBWINDOW, cls=cls, win_id=win_id, kwargs=kwargs
+        )
 
-    def get_current_state(self) -> TState:
-        """
-        現在の状態のディープコピーを返す。
-        """
-        return self._state.model_copy(deep=True)
+    def pub_close_subwindow(self, win_id: str) -> None:
+        """サブウィンドウを閉じるPubSubメッセージを送信する。
 
-    def replace_state(self, new_state: TState) -> None:
-        """状態オブジェクト全体を置き換え、全フィールドに変更通知を送信する。
+        Args:
+            win_id (str): 閉じるサブウィンドウのID
+        """
+        self.publish(DefaultNavigateTopic.CLOSE_SUBWINDOW, win_id=win_id)
+
+    def pub_close_all_subwindows(self) -> None:
+        """すべてのサブウィンドウを閉じるPubSubメッセージを送信する。"""
+        self.publish(DefaultNavigateTopic.CLOSE_ALL_SUBWINDOWS)
+
+    def pub_replace_state(self, new_state: Any) -> None:
+        """状態オブジェクト全体を置き換えるPubSubメッセージを送信する。
 
         Args:
             new_state: 新しい状態オブジェクト。
         """
-        if not isinstance(new_state, self._state_class):
-            raise TypeError(f"new_state must be an instance of {self._state_class}")
+        self.publish(DefaultUpdateTopic.REPLACE_STATE, new_state=new_state)
 
-        old_state = self._state
-        self._state = new_state.model_copy(deep=True)
-
-        # 全フィールドに変更通知を送信
-        for field_name in self._state_class.model_fields.keys():
-            old_value = getattr(old_state, field_name)
-            new_value = getattr(self._state, field_name)
-
-            self.publish(
-                f"{DefaultUpdateTopic.STATE_CHANGED}.{field_name}",
-                old_value=old_value,
-                new_value=new_value,
-            )
-            self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{field_name}")
-
-    def update_state(self, state_path: str, new_value: Any) -> None:
-        """指定パスの属性を更新し、変更通知を送信する。
+    def pub_update_state(self, state_path: str, new_value: Any) -> None:
+        """
+        Storeの状態を更新するPubSubメッセージを送信する。
 
         Args:
-            state_path: 変更対象の属性パス（例: ``"foo.bar"``）。
-            new_value: 新しく設定する値。
+            state_path (str): 更新する状態のパス（例: "user.name", "items[2].value"）
+            new_value (Any): 新しい値
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_update_state(str(self.store.state.user.name), "新しい名前")`
+            The state proxy provides autocomplete and "Go to Definition" functionality.
         """
-        target_obj, attr_name, old_value = self._resolve_path(str(state_path))
-
-        # Undo履歴をキャプチャ
-        self._capture_for_undo(str(state_path), old_value)
-
-        # 型チェック後に設定
-        self._validate_and_set_value(target_obj, attr_name, new_value)
-
-        # 詳細な変更通知（old_value, new_valueを含む）
         self.publish(
-            f"{DefaultUpdateTopic.STATE_CHANGED}.{state_path}",
-            old_value=old_value,
+            DefaultUpdateTopic.UPDATE_STATE,
+            state_path=str(state_path),
             new_value=new_value,
         )
-        # シンプルな更新通知
-        self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
-    def add_to_list(self, state_path: str, item: Any) -> None:
-        """リスト属性に要素を追加し、追加通知を送信する。"""
-        target_obj, attr_name, current_list = self._resolve_path(str(state_path))
-        if not isinstance(current_list, list):
-            raise TypeError(f"Property at '{state_path}' is not a list")
+    def pub_add_to_list(self, state_path: str, item: Any) -> None:
+        """
+        Storeの状態（リスト）に要素を追加するPubSubメッセージを送信する。
 
-        # Undo履歴をキャプチャ
-        self._capture_for_undo(str(state_path), current_list)
+        Args:
+            state_path (str): 要素を追加するリストの状態パス（例: "items", "user.tasks"）
+            item (Any): 追加する要素
 
-        new_list = current_list.copy()
-        new_list.append(item)
-        self._validate_and_set_value(target_obj, attr_name, new_list)
-
-        index = len(new_list) - 1
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_add_to_list(str(self.store.state.items), new_item)`
+            The state proxy provides autocomplete and "Go to Definition" functionality.
+        """
         self.publish(
-            f"{DefaultUpdateTopic.STATE_ADDED}.{state_path}",
-            item=item,
-            index=index,
+            DefaultUpdateTopic.ADD_TO_LIST, state_path=str(state_path), item=item
         )
-        self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
-    def add_to_dict(self, state_path: str, key: str, value: Any) -> None:
-        """辞書属性に要素を追加し、追加通知を送信する。"""
-        target_obj, attr_name, current_dict = self._resolve_path(str(state_path))
-        if not isinstance(current_dict, dict):
-            raise TypeError(f"Property at '{state_path}' is not a dict")
+    def pub_add_to_dict(self, state_path: str, key: str, value: Any) -> None:
+        """Storeの状態(辞書)に要素を追加するPubSubメッセージを送信する。
 
-        # Undo履歴をキャプチャ
-        self._capture_for_undo(str(state_path), current_dict)
+        Args:
+            state_path: 要素を追加する辞書の状態パス。
+            key: 追加するキー。
+            value: 追加する値。
 
-        new_dict = current_dict.copy()
-        new_dict[key] = value
-        self._validate_and_set_value(target_obj, attr_name, new_dict)
-
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_add_to_dict(str(self.store.state.mapping), "k", v)`
+        """
         self.publish(
-            f"{DefaultUpdateTopic.DICT_ADDED}.{state_path}",
+            DefaultUpdateTopic.ADD_TO_DICT,
+            state_path=str(state_path),
             key=key,
             value=value,
         )
-        self.publish(f"{DefaultUpdateTopic.STATE_UPDATED}.{state_path}")
 
-    # --- Undo/Redo 履歴管理機能 ---
+    def pub_register_processor(
+        self,
+        proc: Type[ProcessorBase],
+        name: Optional[str] = None,
+    ) -> None:
+        """Processorを登録するPubSubメッセージを送信する。
 
-    def _enable_undo_redo(self, state_path: str, max_history: int = 10) -> None:
-        """Undo/Redoを有効化し、初回スナップショットとして現在値を記録。"""
-        self._undo_enabled.add(state_path)
-        self._max_histories[state_path] = max_history
+        Args:
+            proc (Type[ProcessorBase]): 登録するProcessorクラス
+            name (Optional[str], optional): Processorの名前。
+                省略した場合はクラス名が使用される。Defaults to None.
 
-        try:
-            _, _, current_value = self._resolve_path(state_path)
-            self._undo_stacks[state_path] = [copy.deepcopy(current_value)]
-        except (AttributeError, ValueError):
-            self._undo_stacks[state_path] = []
-        self._redo_stacks[state_path].clear()
+        Note:
+            登録されたProcessorは、アプリケーションのライフサイクルを通じて有効です。
+        """
+        self.publish(DefaultProcessorTopic.REGISTER_PROCESSOR, proc=proc, name=name)
 
-        # UI用ステータス通知
-        self._emit_ur_status(state_path)
+    def pub_delete_processor(self, name: str) -> None:
+        """指定した名前のProcessorを削除するPubSubメッセージを送信する。
 
-    def _disable_undo_redo(self, state_path: str) -> None:
-        """Undo/Redoを無効化し、履歴を破棄。"""
-        self._undo_enabled.discard(state_path)
-        self._undo_stacks.pop(state_path, None)
-        self._redo_stacks.pop(state_path, None)
-        self._max_histories.pop(state_path, None)
+        Args:
+            name (str): 削除するProcessorの名前
+        """
+        self.publish(DefaultProcessorTopic.DELETE_PROCESSOR, name=name)
 
-        # UI用ステータス通知
-        self._emit_ur_status(state_path)
+    # --- Undo/Redo ---------------------------------------------------------
 
-    def _capture_for_undo(self, state_path: str, old_value: Any) -> None:
-        """状態変更前に履歴を記録し、Redo履歴をクリア。"""
-        if state_path not in self._undo_enabled or self._during_ur_op:
-            return
+    def pub_enable_undo_redo(self, state_path: str, max_history: int = 10) -> None:
+        """指定したstate pathに対してUndo/Redo機能を有効化するPubSubメッセージを送信する。
 
-        stack = self._undo_stacks[state_path]
-        stack.append(copy.deepcopy(old_value))
+        Args:
+            state_path (str): Undo/Redo対象の状態パス（例: "counter", "user.name"）
+            max_history (int, optional): 保持する履歴の最大数。デフォルトは10。
+                メモリ使用量を制御したい場合に調整してください。
 
-        max_len = self._max_histories.get(state_path, 10)
-        if len(stack) > max_len:
-            stack.pop(0)
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_enable_undo_redo(str(self.store.state.counter), max_history=50)`
+            The state proxy provides autocomplete and "Go to Definition" functionality.
 
-        self._redo_stacks[state_path].clear()
-
-        # UI用ステータス通知
-        self._emit_ur_status(state_path)
-
-    def _undo(self, state_path: str) -> None:
-        """1つ前の値に戻す。"""
-        if state_path not in self._undo_enabled:
-            return
-        undo_stack = self._undo_stacks[state_path]
-        if len(undo_stack) < 2:
-            return
-
-        try:
-            _, _, current_value = self._resolve_path(state_path)
-            self._redo_stacks[state_path].append(copy.deepcopy(current_value))
-        except (AttributeError, ValueError):
-            return
-
-        self._during_ur_op = True
-        try:
-            undo_stack.pop()
-            prev = undo_stack[-1]
-            self.update_state(state_path, prev)
-        finally:
-            self._during_ur_op = False
-
-        # UI用ステータス通知
-        self._emit_ur_status(state_path)
-
-    def _redo(self, state_path: str) -> None:
-        """Redo履歴を適用する。"""
-        if state_path not in self._undo_enabled:
-            return
-        redo_stack = self._redo_stacks[state_path]
-        if not redo_stack:
-            return
-
-        try:
-            _, _, current_value = self._resolve_path(state_path)
-            self._undo_stacks[state_path].append(copy.deepcopy(current_value))
-        except (AttributeError, ValueError):
-            return
-
-        self._during_ur_op = True
-        try:
-            next_val = redo_stack.pop()
-            self.update_state(state_path, next_val)
-        finally:
-            self._during_ur_op = False
-
-        # UI用ステータス通知
-        self._emit_ur_status(state_path)
-
-    def _emit_ur_status(self, state_path: str) -> None:
-        """現在のUndo/Redo可否・スタックサイズを通知する."""
-        undo_stack = self._undo_stacks.get(state_path, [])
-        redo_stack = self._redo_stacks.get(state_path, [])
+            このメソッドを呼び出すと、指定されたパスの現在の値が初期スナップショットとして
+            履歴に記録され、以降の変更が追跡されます。
+        """
         self.publish(
-            f"{DefaultUndoTopic.STATUS_CHANGED}.{state_path}",
-            can_undo=len(undo_stack) > 1,
-            can_redo=len(redo_stack) > 0,
-            undo_count=max(len(undo_stack) - 1, 0),
-            redo_count=len(redo_stack),
+            DefaultUndoTopic.ENABLE_UNDO_REDO,
+            state_path=str(state_path),
+            max_history=max_history,
         )
 
-    def _resolve_path(self, path: str) -> tuple[Any, str, Any]:
+    def pub_disable_undo_redo(self, state_path: str) -> None:
+        """指定したstate pathのUndo/Redo機能を無効化するPubSubメッセージを送信する。
+
+        Args:
+            state_path (str): 無効化する状態パス
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_disable_undo_redo(str(self.store.state.counter))`
+
+            このメソッドを呼び出すと、指定されたパスの履歴データが完全に削除され、
+            メモリが解放されます。再度有効化したい場合はpub_enable_undo_redoを
+            呼び出してください。
         """
-        属性パスを解決し、対象オブジェクト・属性名・現在値を返す。
+        self.publish(DefaultUndoTopic.DISABLE_UNDO_REDO, state_path=str(state_path))
+
+    def pub_undo(self, state_path: str) -> None:
+        """指定したstate pathの状態を1つ前の値に戻すPubSubメッセージを送信する。
+
+        Args:
+            state_path (str): Undoを実行する状態パス
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_undo(str(self.store.state.counter))`
+
+            履歴が存在しない場合や、既に最初の状態の場合は何も実行されません。
+            Undoされた変更はRedoで元に戻すことができます。
         """
-        segments = path.split(".")
-        if not segments:
-            raise ValueError("Empty path")
+        self.publish(DefaultUndoTopic.UNDO, state_path=str(state_path))
 
-        attr_name = segments[-1]
-        current = self._state
-        for segment in segments[:-1]:
-            if not hasattr(current, segment):
-                raise AttributeError(f"No such attribute: {segment} in path {path}")
-            current = getattr(current, segment)
+    def pub_redo(self, state_path: str) -> None:
+        """指定したstate pathのUndoを取り消すPubSubメッセージを送信する。
 
-        if not hasattr(current, attr_name):
-            raise AttributeError(f"No such attribute: {attr_name} in path {path}")
-        old_value = getattr(current, attr_name)
-        return current, attr_name, old_value
+        Args:
+            state_path (str): Redoを実行する状態パス
 
-    def _validate_and_set_value(
-        self, target_obj: Any, attr_name: str, new_value: Any
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_redo(str(self.store.state.counter))`
+
+            Redo可能な履歴が存在しない場合は何も実行されません。
+            新しい変更が行われるとRedo履歴はクリアされます。
+        """
+        self.publish(DefaultUndoTopic.REDO, state_path=str(state_path))
+
+    def sub_undo_status(
+        self, state_path: str, handler: Callable[[bool, bool, int, int], None]
     ) -> None:
-        """属性値を型検証してから設定する。"""
-        if isinstance(target_obj, BaseModel):
-            model_fields = target_obj.__class__.model_fields
-            if attr_name in model_fields:
-                field_info = model_fields[attr_name]
-                if hasattr(new_value, "model_dump") and hasattr(
-                    field_info.annotation, "model_validate"
-                ):
-                    validated = field_info.annotation.model_validate(new_value)
-                    setattr(target_obj, attr_name, validated)
-                    return
-        setattr(target_obj, attr_name, new_value)
+        """指定したstate pathのUndo/Redo状態変化を購読する。
 
+        Args:
+            state_path (str): 監視する状態パス
+            handler (Callable[[bool, bool, int, int], None]): 状態変化時に呼び出される関数。
+                can_undo, can_redo, undo_count, redo_countの4引数を取る
 
-# グローバルStoreシングルトン
-_store: Optional[Store[Any]] = None
+        Note:
+            **RECOMMENDED**: Use store.state proxy for consistent path specification:
+            `self.sub_undo_status(str(self.store.state.counter), self.on_undo_status_changed)`
 
+            ハンドラー関数は以下の引数で呼び出されます：
+            - can_undo (bool): Undo実行可能かどうか
+            - can_redo (bool): Redo実行可能かどうか
+            - undo_count (int): 実行可能なUndo回数
+            - redo_count (int): 実行可能なRedo回数
+        """
+        self.subscribe(f"{DefaultUndoTopic.STATUS_CHANGED}.{str(state_path)}", handler)
 
-def get_store(state_cls: Type[TState]) -> Store[TState]:
-    """グローバルな Store インスタンスを取得します。"""
-    global _store
-    if _store is None:
-        _store = Store(state_cls)
-    else:
-        existing = getattr(_store, "_state_class", None)
-        if existing is not state_cls:
-            raise RuntimeError(
-                f"Store は既に {existing!r} で生成されています（state_cls={state_cls!r}）"
-            )
-    return cast(Store[TState], _store)
+    def sub_state_changed(
+        self, state_path: str, handler: Callable[[Any, Any], None]
+    ) -> None:
+        """
+        状態が変更されたときの詳細通知を購読する。
+
+        ハンドラー関数には、old_valueとnew_valueが渡されます。
+
+        Args:
+            state_path (str): 監視する状態のパス（例: "user.name", "items[2].value"）
+            handler (Callable[[Any, Any], None]): 変更時に呼び出される関数。
+                old_valueとnew_valueの2引数を取る
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for consistent path specification:
+            `self.sub_state_changed(str(self.store.state.user.name), self.on_name_changed)`
+        """
+        self.subscribe(f"{DefaultUpdateTopic.STATE_CHANGED}.{str(state_path)}", handler)
+
+    def sub_for_refresh(self, state_path: str, handler: Callable[[], None]) -> None:
+        """
+        状態が更新されたときにUI再描画用のシンプルな通知を購読する。
+
+        ハンドラー関数は引数なしで呼び出され、ハンドラー内で必要に応じて
+        store.get_current_state()を使用して現在の状態を取得できます。
+
+        Args:
+            state_path (str): 監視する状態のパス（例: "user.name", "items[2].value"）
+            handler (Callable[[], None]): 更新時に呼び出される引数なしの関数
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for consistent path specification:
+            `self.sub_for_refresh(str(self.store.state.user.name), self.refresh_ui)`
+
+            このメソッドは、変更内容に関係なく「状態が変わったからUI更新」という
+            パターンに最適です。refresh_from_state()と同じロジックを使い回せます。
+        """
+        self.subscribe(f"{DefaultUpdateTopic.STATE_UPDATED}.{str(state_path)}", handler)
+
+    def sub_state_added(
+        self, state_path: str, handler: Callable[[Any, int], None]
+    ) -> None:
+        """
+        リストに要素が追加されたときの通知を購読する。
+
+        ハンドラー関数には、itemとindexが渡されます。
+
+        Args:
+            state_path (str): 監視するリスト状態のパス（例: "items", "user.tasks"）
+            handler (Callable[[Any, int], None]): 要素追加時に呼び出される関数。
+                追加されたアイテムとそのインデックスを引数に取る
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for consistent path specification:
+            `self.sub_state_added(str(self.store.state.items), self.on_item_added)`
+        """
+        self.subscribe(f"{DefaultUpdateTopic.STATE_ADDED}.{str(state_path)}", handler)
+
+    def sub_dict_item_added(
+        self, state_path: str, handler: Callable[[str, Any], None]
+    ) -> None:
+        """辞書に要素が追加されたときの通知を購読する。
+
+        ハンドラー関数には、キーと値が渡されます。
+
+        Args:
+            state_path: 監視する辞書状態のパス。
+            handler: 追加されたキーと値を引数に取る関数。
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for consistent path specification:
+            `self.sub_dict_item_added(str(self.store.state.mapping), self.on_added)`
+        """
+        self.subscribe(
+            f"{DefaultUpdateTopic.DICT_ADDED}.{str(state_path)}",
+            handler,
+        )
