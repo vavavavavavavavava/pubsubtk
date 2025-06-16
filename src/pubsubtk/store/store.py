@@ -233,7 +233,7 @@ class Store(PubSubBase, Generic[TState]):
     # --- Undo/Redo 履歴管理機能 ---
 
     def _enable_undo_redo(self, state_path: str, max_history: int = 10) -> None:
-        """指定パスのUndo/Redo機能を有効化し、現在の値を初期スナップショットとして記録する。
+        """指定パスのUndo/Redo機能を有効化し、スタックを作成する。
 
         Args:
             state_path: 追跡対象の状態パス
@@ -242,15 +242,9 @@ class Store(PubSubBase, Generic[TState]):
         self._undo_enabled.add(state_path)
         self._max_histories[state_path] = max_history
 
-        # 現在の値を初期スナップショットとして記録
-        try:
-            _, _, current_value = self._resolve_path(state_path)
-            self._undo_stacks[state_path] = [copy.deepcopy(current_value)]
-            self._redo_stacks[state_path].clear()
-        except (AttributeError, ValueError):
-            # パスが存在しない場合は空の履歴で開始
-            self._undo_stacks[state_path] = []
-            self._redo_stacks[state_path].clear()
+        # スタック作成
+        self._undo_stacks[state_path] = []
+        self._redo_stacks[state_path].clear()
 
         # ステータス通知を送信
         self._emit_ur_status(state_path)
@@ -279,11 +273,13 @@ class Store(PubSubBase, Generic[TState]):
 
         stack = self._undo_stacks[state_path]
         stack.append(copy.deepcopy(old_value))
+        print("old_value:", old_value)
 
         # 履歴上限の管理
         max_len = self._max_histories.get(state_path, 10)
         if len(stack) > max_len:
             stack.pop(0)  # 最古の履歴を削除
+        print("stack:", stack)
 
         # 新しい変更が発生したのでRedo履歴をクリア
         self._redo_stacks[state_path].clear()
@@ -292,35 +288,29 @@ class Store(PubSubBase, Generic[TState]):
         self._emit_ur_status(state_path)
 
     def _undo(self, state_path: str) -> None:
-        """指定パスの状態を1つ前の値に戻す。
-
-        Args:
-            state_path: Undoを実行する状態パス
-        """
+        """指定パスの状態を 1 つ前の値に戻す。"""
         if state_path not in self._undo_enabled:
             return
 
         undo_stack = self._undo_stacks[state_path]
-        if len(undo_stack) < 2:  # 現在値 + 少なくとも1つの履歴が必要
+        if len(undo_stack) < 1:
             return
 
-        # 現在の値をRedo履歴に保存
+        # 現在の値を Redo スタックへ退避
         try:
             _, _, current_value = self._resolve_path(state_path)
             self._redo_stacks[state_path].append(copy.deepcopy(current_value))
         except (AttributeError, ValueError):
             return
 
-        # 最新の履歴値を取得（現在値の1つ前）
-        self._during_ur_op = True  # 再帰防止フラグを設定
+        # pop() した値こそ「戻すべき直前値」
+        self._during_ur_op = True
         try:
-            undo_stack.pop()  # 現在値を削除
-            previous_value = undo_stack[-1]  # 1つ前の値を取得（スタックには残す）
+            previous_value = undo_stack.pop()
             self.update_state(state_path, previous_value)
         finally:
             self._during_ur_op = False
 
-        # ステータス通知を送信
         self._emit_ur_status(state_path)
 
     def _redo(self, state_path: str) -> None:
@@ -364,9 +354,9 @@ class Store(PubSubBase, Generic[TState]):
         redo_stack = self._redo_stacks.get(state_path, [])
         self.publish(
             f"{DefaultUndoTopic.STATUS_CHANGED}.{state_path}",
-            can_undo=len(undo_stack) > 1,
+            can_undo=len(undo_stack) > 0,
             can_redo=len(redo_stack) > 0,
-            undo_count=max(len(undo_stack) - 1, 0),
+            undo_count=max(len(undo_stack), 0),
             redo_count=len(redo_stack),
         )
 
