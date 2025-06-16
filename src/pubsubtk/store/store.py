@@ -421,6 +421,9 @@ class Store(PubSubBase, Generic[TState]):
                     setattr(target_obj, attr_name, validated_value)
                     return
 
+        # 通常の属性設定
+        setattr(target_obj, attr_name, new_value)
+
 
 # 実体としてはどんな State 型でも格納できるので Any
 _store: Optional[Store[Any]] = None
