@@ -14,6 +14,7 @@ from pubsubtk.core.pubsub_base import PubSubBase
 from pubsubtk.topic.topics import (
     DefaultNavigateTopic,
     DefaultProcessorTopic,
+    DefaultUndoTopic,
     DefaultUpdateTopic,
 )
 
@@ -194,6 +195,84 @@ class PubSubDefaultTopicBase(PubSubBase):
             name (str): 削除するProcessorの名前
         """
         self.publish(DefaultProcessorTopic.DELETE_PROCESSOR, name=name)
+
+    # --- Undo/Redo ---------------------------------------------------------
+
+    def pub_enable_undo_redo(
+        self, state_path: str, max_history: int = 10
+    ) -> None:
+        """指定したstate pathに対してUndo/Redo機能を有効化するPubSubメッセージを送信する。
+
+        Args:
+            state_path (str): Undo/Redo対象の状態パス（例: "counter", "user.name"）
+            max_history (int, optional): 保持する履歴の最大数。デフォルトは10。
+                メモリ使用量を制御したい場合に調整してください。
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_enable_undo_redo(str(self.store.state.counter), max_history=50)`
+            The state proxy provides autocomplete and "Go to Definition" functionality.
+
+            このメソッドを呼び出すと、指定されたパスの現在の値が初期スナップショットとして
+            履歴に記録され、以降の変更が追跡されます。
+        """
+        self.publish(
+            DefaultUndoTopic.ENABLE_UNDO_REDO,
+            state_path=str(state_path),
+            max_history=max_history,
+        )
+
+    def pub_disable_undo_redo(self, state_path: str) -> None:
+        """指定したstate pathのUndo/Redo機能を無効化するPubSubメッセージを送信する。
+
+        Args:
+            state_path (str): 無効化する状態パス
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_disable_undo_redo(str(self.store.state.counter))`
+
+            このメソッドを呼び出すと、指定されたパスの履歴データが完全に削除され、
+            メモリが解放されます。再度有効化したい場合はpub_enable_undo_redoを
+            呼び出してください。
+        """
+        self.publish(DefaultUndoTopic.DISABLE_UNDO_REDO, state_path=str(state_path))
+
+    def pub_undo(self, state_path: str) -> None:
+        """指定したstate pathの状態を1つ前の値に戻すPubSubメッセージを送信する。
+
+        Args:
+            state_path (str): Undoを実行する状態パス
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_undo(str(self.store.state.counter))`
+
+            履歴が存在しない場合や、既に最初の状態の場合は何も実行されません。
+            Undoされた変更はRedoで元に戻すことができます。
+        """
+        self.publish(DefaultUndoTopic.UNDO, state_path=str(state_path))
+
+    def pub_redo(self, state_path: str) -> None:
+        """指定したstate pathのUndoを取り消すPubSubメッセージを送信する。
+
+        Args:
+            state_path (str): Redoを実行する状態パス
+
+        Note:
+            **RECOMMENDED**: Use store.state proxy for type-safe paths with IDE support:
+            `self.pub_redo(str(self.store.state.counter))`
+
+            Redo可能な履歴が存在しない場合は何も実行されません。
+            新しい変更が行われるとRedo履歴はクリアされます。
+        """
+        self.publish(DefaultUndoTopic.REDO, state_path=str(state_path))
+
+    # --- 日本語エイリアス（お好みで使用） ---
+    pub_アンドゥリドゥを有効にする = pub_enable_undo_redo
+    pub_アンドゥリドゥを無効にする = pub_disable_undo_redo
+    pub_戻す = pub_undo
+    pub_進める = pub_redo
 
     def sub_state_changed(
         self, state_path: str, handler: Callable[[Any, Any], None]
