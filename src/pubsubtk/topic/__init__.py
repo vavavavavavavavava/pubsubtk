@@ -2,11 +2,11 @@
 
 """PubSub トピック列挙型を公開します。"""
 
-from .topics import AutoNamedTopic, DefaultNavigateTopic, DefaultUpdateTopic
+from .topics import AutoNamedTopic, DefaultNavigateTopic, DefaultUndoTopic, DefaultUpdateTopic
 
 __all__ = [
     "AutoNamedTopic",
     "DefaultNavigateTopic",
+    "DefaultUndoTopic",
     "DefaultUpdateTopic",
 ]
-

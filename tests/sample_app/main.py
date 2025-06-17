@@ -80,6 +80,61 @@ class AppTemplate(TemplateComponentTk[AppState]):
 # =============================================================================
 
 
+class UndoRedoControlView(PresentationalComponentTk):
+    """Undo/Redo操作用のPresentationalコンポーネント"""
+
+    def setup_ui(self):
+        self.configure(relief=tk.RIDGE, borderwidth=1, bg="lightyellow")
+
+        # タイトル
+        title_label = tk.Label(
+            self, text="🔄 履歴操作", font=("Arial", 10, "bold"), bg="lightyellow"
+        )
+        title_label.pack(pady=2)
+
+        # ボタンフレーム
+        btn_frame = tk.Frame(self, bg="lightyellow")
+        btn_frame.pack(pady=2)
+
+        self.undo_btn = tk.Button(btn_frame, text="← Undo", state="disabled", width=8)
+        self.undo_btn.pack(side=tk.LEFT, padx=2)
+
+        self.redo_btn = tk.Button(btn_frame, text="Redo →", state="disabled", width=8)
+        self.redo_btn.pack(side=tk.LEFT, padx=2)
+
+        # ステータス表示
+        self.status_label = tk.Label(
+            self, text="無効", font=("Arial", 8), bg="lightyellow", fg="gray"
+        )
+        self.status_label.pack(pady=1)
+
+    def setup_handlers(self, undo_handler, redo_handler):
+        """Undo/Redoハンドラーを設定"""
+        self.undo_btn.config(command=undo_handler)
+        self.redo_btn.config(command=redo_handler)
+
+    def update_status(
+        self, can_undo: bool, can_redo: bool, undo_count: int, redo_count: int
+    ):
+        """Undo/Redoステータスを更新"""
+        # ボタンの有効/無効状態
+        self.undo_btn.config(
+            state="normal" if can_undo else "disabled",
+            text=f"← Undo ({undo_count})" if undo_count > 0 else "← Undo",
+        )
+        self.redo_btn.config(
+            state="normal" if can_redo else "disabled",
+            text=f"Redo ({redo_count}) →" if redo_count > 0 else "Redo →",
+        )
+
+        # ステータステキスト
+        if can_undo or can_redo:
+            status = f"Undo:{undo_count} Redo:{redo_count}"
+            self.status_label.config(text=status, fg="black")
+        else:
+            self.status_label.config(text="履歴なし", fg="gray")
+
+
 class TodoItemView(PresentationalComponentTk):
     def setup_ui(self):
         self.configure(relief=tk.RAISED, borderwidth=1, padx=5, pady=3)
@@ -126,22 +181,45 @@ class StatsView(PresentationalComponentTk):
         completed_todos: int,
         settings_count: int,
         current_view: str,
+        counter_undo_status: dict = None,
+        todos_undo_status: dict = None,
     ):
         """純粋な表示コンポーネント - 必要なデータのみを個別に受け取る"""
         uncompleted = total_todos - completed_todos
 
-        stats = f"""
-        カウンター: {counter}
-        総クリック: {total_clicks}
+        # デフォルト値設定
+        counter_undo_status = counter_undo_status or {
+            "can_undo": False,
+            "can_redo": False,
+            "undo_count": 0,
+            "redo_count": 0,
+        }
+        todos_undo_status = todos_undo_status or {
+            "can_undo": False,
+            "can_redo": False,
+            "undo_count": 0,
+            "redo_count": 0,
+        }
 
-        Todo統計:
-        ・総数: {total_todos}
-        ・完了: {completed_todos}
-        ・未完了: {uncompleted}
+        stats = f"""カウンター: {counter}
+総クリック: {total_clicks}
 
-        設定数: {settings_count}
-        現在画面: {current_view}
-        """
+Todo統計:
+・総数: {total_todos}
+・完了: {completed_todos}
+・未完了: {uncompleted}
+
+設定数: {settings_count}
+現在画面: {current_view}
+
+🔄 履歴状況:
+カウンター履歴:
+・Undo: {counter_undo_status["undo_count"]}回
+・Redo: {counter_undo_status["redo_count"]}回
+
+Todo履歴:
+・Undo: {todos_undo_status["undo_count"]}回
+・Redo: {todos_undo_status["redo_count"]}回"""
 
         self.stats_label.config(text=stats)
 
@@ -157,7 +235,7 @@ class NavbarContainer(ContainerComponentTk[AppState]):
 
         tk.Label(
             self,
-            text="🎯 PubSubTk Demo",
+            text="🎯 PubSubTk Demo (w/ Undo/Redo)",
             fg="white",
             bg="navy",
             font=("Arial", 14, "bold"),
@@ -207,6 +285,13 @@ class MainContainer(ContainerComponentTk[AppState]):
         self.counter_label = tk.Label(self, text="0", font=("Arial", 32))
         self.counter_label.pack(pady=20)
 
+        # Undo/Redoコントロール（カウンター用）
+        self.counter_undo_control = UndoRedoControlView(self)
+        self.counter_undo_control.pack(pady=5)
+        self.counter_undo_control.setup_handlers(
+            undo_handler=self.undo_counter, redo_handler=self.redo_counter
+        )
+
         # ボタン群
         btn_frame = tk.Frame(self)
         btn_frame.pack(pady=10)
@@ -220,6 +305,27 @@ class MainContainer(ContainerComponentTk[AppState]):
         tk.Button(btn_frame, text="サブウィンドウ", command=self.open_sub).pack(
             side=tk.LEFT, padx=5
         )
+
+        # Undo/Redo制御ボタン
+        undo_control_frame = tk.Frame(self)
+        undo_control_frame.pack(pady=5)
+
+        self.enable_undo_btn = tk.Button(
+            undo_control_frame,
+            text="履歴記録ON",
+            command=self.enable_counter_undo,
+            bg="lightgreen",
+        )
+        self.enable_undo_btn.pack(side=tk.LEFT, padx=5)
+
+        self.disable_undo_btn = tk.Button(
+            undo_control_frame,
+            text="履歴記録OFF",
+            command=self.disable_counter_undo,
+            bg="lightcoral",
+            state="disabled",
+        )
+        self.disable_undo_btn.pack(side=tk.LEFT, padx=5)
 
         # ファイル操作
         file_frame = tk.Frame(self)
@@ -252,12 +358,43 @@ class MainContainer(ContainerComponentTk[AppState]):
         self.sub_state_changed(self.store.state.counter, self.on_counter_changed)
         self.subscribe(AppTopic.MILESTONE, self.on_milestone)
 
+        # カウンターのUndo/Redoステータス変化を購読
+        self.sub_undo_status(str(self.store.state.counter), self.on_counter_undo_status)
+
     def refresh_from_state(self):
         state = self.store.get_current_state()
         self.counter_label.config(text=str(state.counter))
 
     def on_counter_changed(self, old_value, new_value):
         self.counter_label.config(text=str(new_value))
+
+    def on_counter_undo_status(
+        self, can_undo: bool, can_redo: bool, undo_count: int, redo_count: int
+    ):
+        """カウンターのUndo/Redoステータス変化ハンドラー"""
+        self.counter_undo_control.update_status(
+            can_undo, can_redo, undo_count, redo_count
+        )
+
+    def enable_counter_undo(self):
+        """カウンターのUndo/Redo機能を有効化"""
+        self.pub_enable_undo_redo(str(self.store.state.counter), max_history=20)
+        self.enable_undo_btn.config(state="disabled")
+        self.disable_undo_btn.config(state="normal")
+
+    def disable_counter_undo(self):
+        """カウンターのUndo/Redo機能を無効化"""
+        self.pub_disable_undo_redo(str(self.store.state.counter))
+        self.enable_undo_btn.config(state="normal")
+        self.disable_undo_btn.config(state="disabled")
+
+    def undo_counter(self):
+        """カウンターをUndo"""
+        self.pub_undo(str(self.store.state.counter))
+
+    def redo_counter(self):
+        """カウンターをRedo"""
+        self.pub_redo(str(self.store.state.counter))
 
     def increment(self):
         self.publish(AppTopic.INCREMENT)
@@ -327,6 +464,34 @@ class TodoContainer(ContainerComponentTk[AppState]):
     def setup_ui(self):
         tk.Label(self, text="📝 Todo管理", font=("Arial", 16, "bold")).pack(pady=10)
 
+        # Todo用Undo/Redoコントロール
+        self.todo_undo_control = UndoRedoControlView(self)
+        self.todo_undo_control.pack(pady=5)
+        self.todo_undo_control.setup_handlers(
+            undo_handler=self.undo_todos, redo_handler=self.redo_todos
+        )
+
+        # Undo/Redo制御
+        undo_control_frame = tk.Frame(self)
+        undo_control_frame.pack(pady=5)
+
+        self.enable_todo_undo_btn = tk.Button(
+            undo_control_frame,
+            text="Todo履歴ON",
+            command=self.enable_todo_undo,
+            bg="lightgreen",
+        )
+        self.enable_todo_undo_btn.pack(side=tk.LEFT, padx=5)
+
+        self.disable_todo_undo_btn = tk.Button(
+            undo_control_frame,
+            text="Todo履歴OFF",
+            command=self.disable_todo_undo,
+            bg="lightcoral",
+            state="disabled",
+        )
+        self.disable_todo_undo_btn.pack(side=tk.LEFT, padx=5)
+
         # Todo追加
         add_frame = tk.Frame(self)
         add_frame.pack(fill=tk.X, padx=10, pady=5)
@@ -363,8 +528,37 @@ class TodoContainer(ContainerComponentTk[AppState]):
         self.sub_state_added(self.store.state.todos, self.on_todo_added)
         self.sub_for_refresh(self.store.state.todos, self.refresh_todo_list)
 
+        # TodoリストのUndo/Redoステータス変化を購読
+        self.sub_undo_status(str(self.store.state.todos), self.on_todo_undo_status)
+
     def refresh_from_state(self):
         self.refresh_todo_list()
+
+    def on_todo_undo_status(
+        self, can_undo: bool, can_redo: bool, undo_count: int, redo_count: int
+    ):
+        """TodoリストのUndo/Redoステータス変化ハンドラー"""
+        self.todo_undo_control.update_status(can_undo, can_redo, undo_count, redo_count)
+
+    def enable_todo_undo(self):
+        """TodoリストのUndo/Redo機能を有効化"""
+        self.pub_enable_undo_redo(str(self.store.state.todos), max_history=15)
+        self.enable_todo_undo_btn.config(state="disabled")
+        self.disable_todo_undo_btn.config(state="normal")
+
+    def disable_todo_undo(self):
+        """TodoリストのUndo/Redo機能を無効化"""
+        self.pub_disable_undo_redo(str(self.store.state.todos))
+        self.enable_todo_undo_btn.config(state="normal")
+        self.disable_todo_undo_btn.config(state="disabled")
+
+    def undo_todos(self):
+        """TodoリストをUndo"""
+        self.pub_undo(str(self.store.state.todos))
+
+    def redo_todos(self):
+        """TodoリストをRedo"""
+        self.pub_redo(str(self.store.state.todos))
 
     def refresh_todo_list(self):
         # 既存ウィジェットクリア
@@ -444,6 +638,20 @@ class SidebarContainer(ContainerComponentTk[AppState]):
             fill=tk.X, pady=2
         )
 
+        # Undo/Redo情報保持用
+        self.counter_undo_status = {
+            "can_undo": False,
+            "can_redo": False,
+            "undo_count": 0,
+            "redo_count": 0,
+        }
+        self.todos_undo_status = {
+            "can_undo": False,
+            "can_redo": False,
+            "undo_count": 0,
+            "redo_count": 0,
+        }
+
     def setup_subscriptions(self):
         # 複数の状態変更を監視
         self.sub_for_refresh(self.store.state.counter, self.refresh_from_state)
@@ -451,8 +659,37 @@ class SidebarContainer(ContainerComponentTk[AppState]):
         self.sub_for_refresh(self.store.state.settings, self.refresh_from_state)
         self.sub_for_refresh(self.store.state.total_clicks, self.refresh_from_state)
         self.sub_for_refresh(self.store.state.current_view, self.refresh_from_state)
+
         # sub_dict_item_added使用
         self.sub_dict_item_added(self.store.state.settings, self.on_setting_added)
+
+        # Undo/Redoステータス監視
+        self.sub_undo_status(str(self.store.state.counter), self.on_counter_undo_status)
+        self.sub_undo_status(str(self.store.state.todos), self.on_todos_undo_status)
+
+    def on_counter_undo_status(
+        self, can_undo: bool, can_redo: bool, undo_count: int, redo_count: int
+    ):
+        """カウンターのUndo/Redoステータス変化ハンドラー"""
+        self.counter_undo_status = {
+            "can_undo": can_undo,
+            "can_redo": can_redo,
+            "undo_count": undo_count,
+            "redo_count": redo_count,
+        }
+        self.refresh_from_state()
+
+    def on_todos_undo_status(
+        self, can_undo: bool, can_redo: bool, undo_count: int, redo_count: int
+    ):
+        """TodoリストのUndo/Redoステータス変化ハンドラー"""
+        self.todos_undo_status = {
+            "can_undo": can_undo,
+            "can_redo": can_redo,
+            "undo_count": undo_count,
+            "redo_count": redo_count,
+        }
+        self.refresh_from_state()
 
     def refresh_from_state(self):
         state = self.store.get_current_state()
@@ -467,6 +704,8 @@ class SidebarContainer(ContainerComponentTk[AppState]):
             completed_todos=completed_todos,
             settings_count=len(state.settings),
             current_view=state.current_view,
+            counter_undo_status=self.counter_undo_status,
+            todos_undo_status=self.todos_undo_status,
         )
 
     def on_setting_added(self, key: str, value: str):

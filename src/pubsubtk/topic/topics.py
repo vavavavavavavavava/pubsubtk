@@ -65,3 +65,15 @@ class DefaultProcessorTopic(AutoNamedTopic):
 
     REGISTER_PROCESSOR = auto()
     DELETE_PROCESSOR = auto()
+
+
+class DefaultUndoTopic(AutoNamedTopic):
+    """
+    Undo/Redo機能用のPubSubトピック列挙型。
+    """
+
+    ENABLE_UNDO_REDO = auto()
+    DISABLE_UNDO_REDO = auto()
+    UNDO = auto()
+    REDO = auto()
+    STATUS_CHANGED = auto()
