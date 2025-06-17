@@ -9,6 +9,7 @@
 - **3層分離（Container / Presentational / Processor）**による保守性・再利用性
 - **リアクティブUI**と柔軟な画面遷移
 - **StateProxy**によるIDE連携（補完・定義ジャンプ・リファクタリング◎）
+- **組み込みUndo/Redo**機能でフィールド単位の履歴管理が簡単
 
 ## 🚀 クイックスタート
 
@@ -29,12 +30,30 @@ class Main(ContainerComponentTk[AppState]):
         self.label = tk.Label(self, text="0")
         self.label.pack()
         tk.Button(self, text="増やす", command=self.inc).pack()
+        
+        # Undo/Redoボタンも簡単に追加
+        self.undo_btn = tk.Button(self, text="Undo", command=self.undo)
+        self.undo_btn.pack()
+        
     def setup_subscriptions(self):
+        # Undo/Redo機能を有効化
+        self.pub_enable_undo_redo(self.store.state.count, max_history=20)
+        
         self.sub_state_changed(self.store.state.count, self.on_count)
-    def on_count(self, _, new): self.label.config(text=str(new))
+        self.sub_undo_status(self.store.state.count, self.on_undo_status)
+        
+    def on_count(self, _, new): 
+        self.label.config(text=str(new))
+        
+    def on_undo_status(self, can_undo, can_redo, undo_count, redo_count):
+        self.undo_btn.config(state="normal" if can_undo else "disabled")
+        
     def inc(self):
         state = self.store.get_current_state()
         self.pub_update_state(self.store.state.count, state.count + 1)
+        
+    def undo(self):
+        self.pub_undo(self.store.state.count)
 
 if __name__ == "__main__":
     app = TkApplication(AppState, title="Demo")

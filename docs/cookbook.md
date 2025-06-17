@@ -1,4 +1,3 @@
-
 # 実装レシピ集（Cookbook）
 
 PubSubTkでよく使う「ちょいネタ」や実践Tipsをまとめています。
@@ -20,10 +19,88 @@ class DialogContainer(ContainerComponentTk[AppState]):
 
 ---
 
-## Undo/Redoの基本実装（状態全体のスナップショット方式）
+## Undo/Redoの実装パターン
+
+### パターン1: 組み込みUndo/Redo機能（推奨）
 
 **ポイント:**
-アプリの状態全体を`model_dump()`で履歴として保持し、`pub_replace_state()`で復元します。
+特定のフィールドに対して細かくUndo/Redo履歴を管理する最新の方式です。メモリ効率が良く、複数フィールドの独立した履歴管理が可能です。
+
+```python
+from pydantic import BaseModel
+from pubsubtk import TkApplication, ContainerComponentTk
+
+class AppState(BaseModel):
+    counter: int = 0
+    text: str = ""
+
+class MainContainer(ContainerComponentTk[AppState]):
+    def setup_ui(self):
+        import tkinter as tk
+        
+        # カウンターエリア
+        counter_frame = tk.Frame(self)
+        counter_frame.pack(pady=10)
+        
+        self.counter_label = tk.Label(counter_frame, text="0")
+        self.counter_label.pack(side=tk.LEFT)
+        
+        tk.Button(counter_frame, text="+", command=self.increment).pack(side=tk.LEFT)
+        
+        # Undo/Redoボタン
+        undo_frame = tk.Frame(self)
+        undo_frame.pack(pady=5)
+        
+        self.undo_btn = tk.Button(undo_frame, text="Undo", command=self.undo_counter)
+        self.undo_btn.pack(side=tk.LEFT)
+        
+        self.redo_btn = tk.Button(undo_frame, text="Redo", command=self.redo_counter)
+        self.redo_btn.pack(side=tk.LEFT)
+    
+    def setup_subscriptions(self):
+        # カウンターのUndo/Redo機能を有効化（履歴50件まで保持）
+        self.pub_enable_undo_redo(self.store.state.counter, max_history=50)
+        
+        # 状態変更とUndo/Redo可否状態を監視
+        self.sub_state_changed(self.store.state.counter, self.on_counter_changed)
+        self.sub_undo_status(self.store.state.counter, self.on_undo_status_changed)
+    
+    def refresh_from_state(self):
+        state = self.store.get_current_state()
+        self.counter_label.config(text=str(state.counter))
+    
+    def on_counter_changed(self, old_value, new_value):
+        self.counter_label.config(text=str(new_value))
+    
+    def on_undo_status_changed(self, can_undo, can_redo, undo_count, redo_count):
+        # ボタンの有効/無効を切り替え
+        self.undo_btn.config(state="normal" if can_undo else "disabled")
+        self.redo_btn.config(state="normal" if can_redo else "disabled")
+        
+        # ツールチップ更新（optional）
+        self.undo_btn.config(text=f"Undo ({undo_count})")
+        self.redo_btn.config(text=f"Redo ({redo_count})")
+    
+    def increment(self):
+        state = self.store.get_current_state()
+        self.pub_update_state(self.store.state.counter, state.counter + 1)
+    
+    def undo_counter(self):
+        self.pub_undo(self.store.state.counter)
+    
+    def redo_counter(self):
+        self.pub_redo(self.store.state.counter)
+
+if __name__ == "__main__":
+    app = TkApplication(AppState, title="Undo/Redo Demo")
+    app.switch_container(MainContainer)
+    app.run()
+```
+
+### パターン2: 状態全体のスナップショット方式（レガシー）
+
+**ポイント:**
+アプリの状態全体を`model_dump()`で履歴として保持し、`pub_replace_state()`で復元します。シンプルですがメモリ使用量が多くなることがあります。
 
 ```python
 from pydantic import BaseModel, Field
@@ -60,8 +137,37 @@ def redo(self):
         self.pub_update_state(self.store.state.future, state.future[1:])
 ```
 
-* 状態変更前に`past`に現在のスナップショットを`model_dump()`で追加
-* `undo`は`past`から復元、`redo`は`future`から復元
+---
+
+## 複数フィールドでのUndo/Redo使い分け
+
+```python
+class AppState(BaseModel):
+    text_content: str = ""
+    font_size: int = 12
+    color: str = "black"
+
+class EditorContainer(ContainerComponentTk[AppState]):
+    def setup_subscriptions(self):
+        # テキスト内容は大量履歴で管理
+        self.pub_enable_undo_redo(self.store.state.text_content, max_history=100)
+        
+        # フォントサイズは少ない履歴で十分
+        self.pub_enable_undo_redo(self.store.state.font_size, max_history=20)
+        
+        # 色変更も履歴管理
+        self.pub_enable_undo_redo(self.store.state.color, max_history=10)
+        
+        # それぞれ独立してUndo/Redo状態を監視
+        self.sub_undo_status(self.store.state.text_content, self.on_text_undo_status)
+        self.sub_undo_status(self.store.state.font_size, self.on_font_undo_status)
+    
+    def undo_text(self):
+        self.pub_undo(self.store.state.text_content)
+    
+    def undo_font_size(self):
+        self.pub_undo(self.store.state.font_size)
+```
 
 ---
 
@@ -70,6 +176,8 @@ def redo(self):
 ```python
 # tkinterのbindで対応可能
 root.bind('<Control-s>', lambda e: app.publish(SaveEvents.SAVE))
+root.bind('<Control-z>', lambda e: self.pub_undo(self.store.state.main_content))
+root.bind('<Control-y>', lambda e: self.pub_redo(self.store.state.main_content))
 ```
 
 ---

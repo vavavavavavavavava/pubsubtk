@@ -24,6 +24,7 @@ PubSubTkは主に次のモジュール群で構成されています：
   - [`DefaultNavigateTopic`](pubsubtk/topic/topics/#pubsubtk.topic.topics.DefaultNavigateTopic)
   - [`DefaultUpdateTopic`](pubsubtk/topic/topics/#pubsubtk.topic.topics.DefaultUpdateTopic)
   - [`DefaultProcessorTopic`](pubsubtk/topic/topics/#pubsubtk.topic.topics.DefaultProcessorTopic)
+  - [`DefaultUndoTopic`](pubsubtk/topic/topics/#pubsubtk.topic.topics.DefaultUndoTopic) … **New!** Undo/Redo操作用
 
 ### Application Framework
 
@@ -70,6 +71,10 @@ PubSubTkは主に次のモジュール群で構成されています：
 | `sub_state_changed()` | 状態変更監視 | Container |
 | `setup_subscriptions()` | 購読設定 | Container, Processor |
 | `refresh_from_state()` | UI更新 | Container |
+| `pub_enable_undo_redo()` | **New!** Undo/Redo有効化 | Container, Processor |
+| `pub_undo()` | **New!** 取り消し実行 | Container, Processor |
+| `pub_redo()` | **New!** やり直し実行 | Container, Processor |
+| `sub_undo_status()` | **New!** Undo/Redo状態監視 | Container |
 
 ---
 
@@ -93,6 +98,27 @@ class MainContainer(ContainerComponentTk[AppState]):
 app = TkApplication(AppState)
 app.switch_container(MainContainer)
 app.run()
+```
+
+### Undo/Redoの基本
+
+```python
+class MainContainer(ContainerComponentTk[AppState]):
+    def setup_subscriptions(self):
+        # Undo/Redo機能を有効化
+        self.pub_enable_undo_redo(self.store.state.counter, max_history=50)
+        # Undo/Redo可否状態を監視
+        self.sub_undo_status(self.store.state.counter, self.on_undo_status_changed)
+    
+    def on_undo_status_changed(self, can_undo, can_redo, undo_count, redo_count):
+        self.undo_button.config(state="normal" if can_undo else "disabled")
+        self.redo_button.config(state="normal" if can_redo else "disabled")
+    
+    def on_undo_clicked(self):
+        self.pub_undo(self.store.state.counter)
+    
+    def on_redo_clicked(self):
+        self.pub_redo(self.store.state.counter)
 ```
 
 ### Processorの活用
@@ -139,6 +165,7 @@ app.pub_switch_slot("main", MainContainer)
 
 - `enable_pubsub_debug_logging()` でPubSubのメッセージ流れを確認可能
 - 状態のスナップショットや復元もPydantic標準で手軽
+- Undo/Redoの履歴状態もリアルタイムで確認可能
 
 ---
 

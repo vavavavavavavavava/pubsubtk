@@ -1,4 +1,3 @@
-
 # はじめに
 
 PubSubTkで、型安全かつ疎結合なGUIアプリケーションを素早く開発しましょう。
@@ -98,14 +97,33 @@ if __name__ == "__main__":
     app.run()
 ```
 
-## 4. 複数画面／テンプレート／サブウィンドウ
+## 4. Undo/Redo機能を追加してみる
 
-* 複数画面: `TemplateComponentTk` と `pub_switch_slot`
-* サブウィンドウ: `pub_open_subwindow`
+PubSubTkでは組み込みのUndo/Redo機能を簡単に追加できます：
 
-## 5. よくある開発Tips
-
-* テーマ切り替え（`ThemedApplication`を利用）
-* 状態のバリデーション
-* イベント駆動とUI分離パターン
-* デバッグ: `enable_pubsub_debug_logging()` でPubSubの動作を可視化
+```python
+class Main(ContainerComponentTk[AppState]):
+    def setup_ui(self):
+        import tkinter as tk
+        
+        # カウンター表示
+        self.label = tk.Label(self, text="0")
+        self.label.pack()
+        
+        # 操作ボタン
+        button_frame = tk.Frame(self)
+        button_frame.pack()
+        tk.Button(button_frame, text="増やす", command=self.inc).pack(side=tk.LEFT)
+        
+        # Undo/Redoボタン
+        self.undo_btn = tk.Button(button_frame, text="Undo", command=self.undo)
+        self.undo_btn.pack(side=tk.LEFT)
+        self.redo_btn = tk.Button(button_frame, text="Redo", command=self.redo)
+        self.redo_btn.pack(side=tk.LEFT)
+    
+    def setup_subscriptions(self):
+        # Undo/Redo機能を有効化（履歴20件まで保持）
+        self.pub_enable_undo_redo(self.store.state.count, max_history=20)
+        
+        # 状態変更とUndo/Redo可否を監視
+        self.sub_state_chang
