@@ -76,6 +76,11 @@ from tkinter import ttk
 | `pub_add_to_dict(state_path, key, value)` | 辞書要素を型安全に追加                           | Processor / Container |
 | `pub_register_processor(proc, name)`      | Processor を動的に登録                      | Processor             |
 | `pub_delete_processor(name)`              | Processor を削除                         | Processor             |
+| `pub_enable_undo_redo(state_path, max_history)` | Undo/Redo 履歴を有効化 | Processor / Container |
+| `pub_disable_undo_redo(state_path)`       | Undo/Redo 履歴を無効化 | Processor / Container |
+| `pub_undo(state_path)`                    | 1つ前の値に戻す        | Processor / Container |
+| `pub_redo(state_path)`                    | Undo を取り消す        | Processor / Container |
+| `sub_undo_status(state_path, handler)`    | Undo/Redo 状態変化を購読 | Container             |
 | `sub_state_changed(state_path, handler)`  | 指定パスの値変更を購読（old_value, new_value受信）   | Container             |
 | `sub_for_refresh(state_path, handler)`    | 状態更新時のUI再描画用シンプル通知を購読（引数なし）         | Container             |
 | `sub_state_added(state_path, handler)`    | リストへの要素追加を購読（item, index受信）         | Container             |
@@ -181,11 +186,32 @@ app.pub_switch_slot("sidebar", NavigationPanel)
 class TodoProcessor(ProcessorBase[AppState]):
     def setup_subscriptions(self):
         self.subscribe("todo.bulk_update", self.handle_bulk_update)
-    
+
     def handle_bulk_update(self, todo_ids: List[int]):
         # 複雑なロジック処理
         pass
 ```
+
+### Undo/Redo 機能
+
+PubSubTk では、任意の状態パスを指定して Undo/Redo 履歴を管理できます。
+`pub_enable_undo_redo()` で履歴を有効化すると自動的に変更が追跡され、
+`pub_undo()` と `pub_redo()` で値を戻したりやり直したりできます。履歴数は
+`max_history` 引数で調整してください。
+
+```python
+# Undo/Redo の有効化
+self.pub_enable_undo_redo(str(self.store.state.counter), max_history=20)
+
+# 操作
+self.pub_undo(str(self.store.state.counter))
+self.pub_redo(str(self.store.state.counter))
+
+# 履歴追跡の停止
+self.pub_disable_undo_redo(str(self.store.state.counter))
+```
+
+`sub_undo_status()` を使うと、Undo/Redo 可能かどうかや履歴数を購読できます。
 
 ### カスタムトピック・PubSub拡張
 
@@ -219,6 +245,10 @@ class MyProcessor(ProcessorBase[AppState]):
 self.pub_update_state(self.store.state.count, 42)      # 状態更新
 self.pub_switch_container(NewContainer)                # 画面切り替え
 self.pub_open_subwindow(DialogContainer)               # サブウィンドウ
+self.pub_enable_undo_redo(str(self.store.state.count))               # Undo履歴を開始
+self.pub_undo(str(self.store.state.count))                    # Undo
+self.pub_redo(str(self.store.state.count))                    # Redo
+self.pub_disable_undo_redo(str(self.store.state.count))      # 履歴停止
 
 # ✅ カスタムトピックを使用（ビジネスロジック特有の通信）
 self.publish(MyAppTopic.USER_LOGIN, user_id=123)       # アプリ固有のイベント
@@ -243,6 +273,10 @@ path = str(self.store.state.user.name).replace("old", "new")
 # ✅ 推奨: 組み込みメソッドを使用
 self.pub_update_state(self.store.state.count, 42)
 self.pub_switch_container(OtherContainer)
+self.pub_enable_undo_redo(str(self.store.state.count))
+self.pub_undo(str(self.store.state.count))
+self.pub_redo(str(self.store.state.count))
+self.pub_disable_undo_redo(str(self.store.state.count))
 
 # ❌ 非推奨: 手動でトピック操作
 self.publish(DefaultUpdateTopic.UPDATE_STATE, state_path="count", new_value=42)
