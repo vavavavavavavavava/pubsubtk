@@ -27,11 +27,6 @@ class StorybookContainer(ContainerComponentTk[StorybookState]):
         # Processor 登録
         self.pub_register_processor(StorybookProcessor, "storybook")
 
-        # SidebarViewにPubSub発行機能を追加
-        sidebar_widget = self.template.get_slot_content("sidebar")
-        if sidebar_widget and hasattr(sidebar_widget, "set_publish_callback"):
-            sidebar_widget.set_publish_callback(self.publish)
-
     def refresh_from_state(self):
         # 今回は個別 Slots が自前でリフレッシュするため何もしない
         pass
