@@ -1,12 +1,16 @@
 # storybook/meta.py - Story/Knob メタモデル
-"""StoryMeta / KnobSpec を定義するモジュール。"""
+"""
+src/pubsubtk/storybook/meta.py
+
+StoryMeta と KnobSpec を定義するモジュール。
+"""
 
 from __future__ import annotations
 
 import tkinter as tk
 from typing import Any, Callable, List, Type
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 
 class KnobSpec(BaseModel):
@@ -19,7 +23,17 @@ class KnobSpec(BaseModel):
     range: tuple[Any, Any, Any] | None = None
     choices: List[str] | None = None
     multiline: bool = False
-    var: tk.Variable  # 実際の tk.Variable
+    _var: tk.Variable = PrivateAttr()
+
+    def __init__(self, *, var: tk.Variable, **data: Any):
+        """``tk.Variable`` を ``PrivateAttr`` として保持する。"""
+        super().__init__(**data)
+        self._var = var
+
+    @property
+    def var(self) -> tk.Variable:
+        """保持している ``tk.Variable`` を返す。"""
+        return self._var
 
     class Config:
         arbitrary_types_allowed = True
