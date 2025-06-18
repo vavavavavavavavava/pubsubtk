@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from pubsubtk.storybook import StorybookApplication, story
+from pubsubtk.storybook.context import StoryContext
 
 
 # ------------------------------------------------------------------ #
@@ -38,7 +39,7 @@ def label_primary(ctx):
 
 
 @story("UI.Button.Danger")
-def button_danger(ctx):
+def button_danger(ctx: StoryContext):
     """危険アクション用ボタン"""
     txt = ctx.knob(name="caption", type=str, default="Delete", desc="ボタンテキスト")
     enabled = ctx.knob(name="enabled", type=bool, default=True, desc="有効/無効")
@@ -62,7 +63,7 @@ def button_danger(ctx):
 
 
 @story("UI.Entry.Search")
-def entry_search(ctx):
+def entry_search(ctx: StoryContext):
     """検索入力フィールド"""
     placeholder = ctx.knob(
         name="placeholder",
@@ -87,7 +88,7 @@ def entry_search(ctx):
 
 
 @story("UI.Text.Multiline")
-def text_multiline(ctx):
+def text_multiline(ctx: StoryContext):
     """複数行テキストエリア"""
     content = ctx.knob(
         name="content",
@@ -113,7 +114,7 @@ def text_multiline(ctx):
 
 
 @story("TTK.Button.Themed")
-def ttk_button_themed(ctx):
+def ttk_button_themed(ctx: StoryContext):
     """テーマ対応ボタン"""
     text = ctx.knob(
         name="text", type=str, default="Themed Button", desc="ボタンテキスト"
@@ -139,7 +140,7 @@ def ttk_button_themed(ctx):
 
 
 @story("TTK.Progress.Bar")
-def ttk_progress_bar(ctx):
+def ttk_progress_bar(ctx: StoryContext):
     """プログレスバー"""
     value = ctx.knob(
         name="value", type=int, default=50, desc="進捗値", range=(0, 100, 5)
