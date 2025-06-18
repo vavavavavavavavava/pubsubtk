@@ -27,6 +27,9 @@ class StorybookContainer(ContainerComponentTtk[StorybookState]):
         # Processor 登録
         self.pub_register_processor(StorybookProcessor, "storybook")
 
+    def setup_subscriptions(self):
+        pass
+
     def refresh_from_state(self):
         # 今回は個別 Slots が自前でリフレッシュするため何もしない
         pass
