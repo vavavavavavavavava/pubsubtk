@@ -1366,7 +1366,7 @@ class StateProxy(Generic[TState]):
 
     - store.state.foo.bar のようなドット記法でネスト属性へアクセス可能
     - 存在しない属性アクセス時は AttributeError を送出
-    - __repr__ でパス文字列を返す
+    - __repr__ で ``State`` 型名を含むパス文字列を返す
     """
 
     def __init__(self, store: "Store[TState]", path: str = ""):
@@ -1396,9 +1396,10 @@ class StateProxy(Generic[TState]):
         return StateProxy(self._store, new_path)
 
     def __repr__(self) -> str:
-        """パス文字列を返す。"""
+        """State型名を含むパス文字列を返す。"""
 
-        return f"{self._path}"
+        prefix = self._store._state_class.__name__
+        return f"{prefix}.{self._path}" if self._path else prefix
 
     __str__ = __repr__
 
@@ -1605,31 +1606,24 @@ class Store(PubSubBase, Generic[TState]):
 
 
 # 実体としてはどんな State 型でも格納できるので Any
-_store: Optional[Store[Any]] = None
+_stores: dict[Type[BaseModel], Store[Any]] = {}
 
 
 def get_store(state_cls: Type[TState]) -> Store[TState]:
-    """グローバルな ``Store`` インスタンスを取得する。
+    """指定された ``state_cls`` 用の ``Store`` インスタンスを取得する。
+
+    同じ ``state_cls`` に対しては生成済みの ``Store`` を再利用し、
+    未生成であれば新しく作成して保持します。
 
     Args:
         state_cls: ``Store`` 生成に使用する状態モデルの型。
 
     Returns:
-        共有 ``Store`` インスタンス。
-
-    Raises:
-        RuntimeError: 既に別の ``state_cls`` で生成されている場合。
+        ``state_cls`` に対応する ``Store`` インスタンス。
     """
-    global _store
-    if _store is None:
-        _store = Store(state_cls)
-    else:
-        existing = getattr(_store, "_state_class", None)
-        if existing is not state_cls:
-            raise RuntimeError(
-                f"Store は既に {existing!r} で生成されています（呼び出し時の state_cls={state_cls!r}）"
-            )
-    return cast(Store[TState], _store)
+    if state_cls not in _stores:
+        _stores[state_cls] = Store(state_cls)
+    return cast(Store[TState], _stores[state_cls])
 ```
 
 ### アプリケーションクラス
