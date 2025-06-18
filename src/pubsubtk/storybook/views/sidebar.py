@@ -4,21 +4,52 @@
 import tkinter as tk
 from tkinter import ttk
 
-from pubsubtk import ContainerComponentTk
+from pubsubtk import ContainerComponentTtk
 
 from ..registry import StoryRegistry
 from ..state import StorybookState
 from ..topic import SBTopic
 
 
-class SidebarView(ContainerComponentTk[StorybookState]):
-    """左側のツリーサイドバー"""
+class SidebarView(ContainerComponentTtk[StorybookState]):
+    """左側のツリーサイドバー（テーマ対応）"""
 
     def setup_ui(self):
-        self.tree = ttk.Treeview(self, show="tree")
-        self.tree.pack(fill=tk.BOTH, expand=True)
+        # ヘッダー
+        header_frame = ttk.Frame(self)
+        header_frame.pack(fill=tk.X, padx=5, pady=(5, 0))
+
+        title_label = ttk.Label(header_frame, text="Stories", font=("", 12, "bold"))
+        title_label.pack(side=tk.LEFT)
+
+        # 区切り線
+        separator = ttk.Separator(self, orient=tk.HORIZONTAL)
+        separator.pack(fill=tk.X, padx=5, pady=5)
+
+        # ツリービュー用フレーム
+        tree_frame = ttk.Frame(self)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=(0, 5))
+
+        # ツリービュー
+        self.tree = ttk.Treeview(tree_frame, show="tree")
+
+        # スクロールバー
+        scrollbar = ttk.Scrollbar(
+            tree_frame, orient=tk.VERTICAL, command=self.tree.yview
+        )
+        self.tree.configure(yscrollcommand=scrollbar.set)
+
+        # レイアウト
+        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # データ投入とイベント設定
         self._populate()
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
+
+        # ツリーのスタイル調整
+        style = ttk.Style()
+        style.configure("Treeview", rowheight=25)
 
     def setup_subscriptions(self):
         # 必要に応じて状態変更を購読
@@ -34,10 +65,16 @@ class SidebarView(ContainerComponentTk[StorybookState]):
             for seg in meta.path:
                 node_id = f"{parent_id}.{seg}" if parent_id else seg
                 if not self.tree.exists(node_id):
-                    self.tree.insert(parent_id, "end", iid=node_id, text=seg, open=True)
+                    self.tree.insert(
+                        parent_id, "end", iid=node_id, text=f"📁 {seg}", open=True
+                    )
                 parent_id = node_id
             self.tree.insert(
-                parent_id, "end", iid=meta.id, text=meta.title, values=(meta.id,)
+                parent_id,
+                "end",
+                iid=meta.id,
+                text=f"📄 {meta.title}",
+                values=(meta.id,),
             )
 
     def _on_select(self, _):

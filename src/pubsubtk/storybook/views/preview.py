@@ -2,8 +2,9 @@
 """選択された Story を実際に描画するプレビューフレーム。"""
 
 import tkinter as tk
+from tkinter import ttk
 
-from pubsubtk import ContainerComponentTk
+from pubsubtk import ContainerComponentTtk
 
 from ..context import StoryContext
 from ..registry import StoryRegistry
@@ -11,13 +12,25 @@ from ..state import StorybookState
 from ..topic import SBTopic
 
 
-class PreviewFrame(ContainerComponentTk[StorybookState]):
-    """中央のプレビューエリア"""
+class PreviewFrame(ContainerComponentTtk[StorybookState]):
+    """中央のプレビューエリア（テーマ対応）"""
 
     def setup_ui(self):
-        # 空のレーベルを初期表示
-        self.label = tk.Label(self, text="Select a story", fg="gray")
-        self.label.pack(expand=True)
+        # 初期表示用の中央配置フレーム
+        self.center_frame = ttk.Frame(self)
+        self.center_frame.pack(expand=True)
+
+        # アイコンと説明文
+        icon_label = ttk.Label(self.center_frame, text="🎨", font=("", 48))
+        icon_label.pack(pady=(20, 10))
+
+        self.label = ttk.Label(
+            self.center_frame,
+            text="Select a story from the sidebar",
+            font=("", 12),
+            foreground="gray",
+        )
+        self.label.pack()
 
     def setup_subscriptions(self):
         self.sub_for_refresh(str(self.store.state.active_story_id), self._refresh)
@@ -33,22 +46,72 @@ class PreviewFrame(ContainerComponentTk[StorybookState]):
 
         story_id = self.store.get_current_state().active_story_id
         if not story_id:
-            self.label = tk.Label(self, text="Select a story", fg="gray")
-            self.label.pack(expand=True)
+            self._show_empty_state()
             return
 
         stories = [m for m in StoryRegistry.list() if m.id == story_id]
         if not stories:
-            self.label = tk.Label(self, text="Story not found", fg="red")
-            self.label.pack(expand=True)
+            self._show_error_state("Story not found")
             return
 
         meta = stories[0]
-        ctx = StoryContext(parent=self)
-        ctx.set_publish_callback(self.publish)
 
-        widget = meta.factory(ctx)
-        widget.pack(fill=tk.BOTH, expand=True)
+        try:
+            # コンテンツフレーム作成
+            content_frame = ttk.Frame(self)
+            content_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # KnobSpec は KnobPanel に通知
-        self.publish(SBTopic.KNOB_CHANGED, name="__init__", value=ctx.knob_specs)
+            # Story情報ヘッダー
+            info_frame = ttk.Frame(content_frame)
+            info_frame.pack(fill=tk.X, pady=(0, 10))
+
+            path_text = " > ".join(meta.path + [meta.title])
+            ttk.Label(
+                info_frame, text=path_text, font=("", 10), foreground="gray"
+            ).pack(side=tk.LEFT)
+
+            # 区切り線
+            ttk.Separator(content_frame, orient=tk.HORIZONTAL).pack(
+                fill=tk.X, pady=(0, 10)
+            )
+
+            # Story実行エリア
+            story_frame = ttk.Frame(content_frame)
+            story_frame.pack(fill=tk.BOTH, expand=True)
+
+            ctx = StoryContext(parent=story_frame)
+            ctx.set_publish_callback(self.publish)
+
+            widget = meta.factory(ctx)
+            widget.pack(fill=tk.BOTH, expand=True)
+
+            # KnobSpec は KnobPanel に通知
+            self.publish(SBTopic.KNOB_CHANGED, name="__init__", value=ctx.knob_specs)
+
+        except Exception as e:
+            self._show_error_state(f"Error rendering story: {str(e)}")
+
+    def _show_empty_state(self):
+        """空の状態を表示"""
+        center_frame = ttk.Frame(self)
+        center_frame.pack(expand=True)
+
+        icon_label = ttk.Label(center_frame, text="🎨", font=("", 48))
+        icon_label.pack(pady=(20, 10))
+
+        ttk.Label(
+            center_frame,
+            text="Select a story from the sidebar",
+            font=("", 12),
+            foreground="gray",
+        ).pack()
+
+    def _show_error_state(self, message: str):
+        """エラー状態を表示"""
+        center_frame = ttk.Frame(self)
+        center_frame.pack(expand=True)
+
+        icon_label = ttk.Label(center_frame, text="⚠️", font=("", 48))
+        icon_label.pack(pady=(20, 10))
+
+        ttk.Label(center_frame, text=message, font=("", 12), foreground="red").pack()

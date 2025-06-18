@@ -1,7 +1,7 @@
 # storybook/container.py - StorybookContainer
 """Storybook を構成する最上位 Container。"""
 
-from pubsubtk import ContainerComponentTk
+from pubsubtk import ContainerComponentTtk
 
 from .processor import StorybookProcessor
 from .state import StorybookState
@@ -11,8 +11,8 @@ from .views.preview import PreviewFrame
 from .views.sidebar import SidebarView
 
 
-class StorybookContainer(ContainerComponentTk[StorybookState]):
-    """Storybook 全体を管理するコンテナ"""
+class StorybookContainer(ContainerComponentTtk[StorybookState]):
+    """Storybook 全体を管理するコンテナ（テーマ対応）"""
 
     def setup_ui(self):
         # テンプレートを直接インスタンス化して配置
