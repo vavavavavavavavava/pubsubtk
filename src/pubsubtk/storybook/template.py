@@ -4,8 +4,7 @@
 from tkinter import ttk
 
 from pubsubtk import TemplateComponentTtk
-
-from .state import StorybookState
+from pubsubtk.storybook.state import StorybookState
 
 
 class StorybookTemplate(TemplateComponentTtk[StorybookState]):

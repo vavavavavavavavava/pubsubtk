@@ -4,9 +4,8 @@
 from typing import Any
 
 from pubsubtk import ProcessorBase
-
-from .state import StorybookState
-from .topic import SBTopic
+from pubsubtk.storybook.state import StorybookState
+from pubsubtk.storybook.topic import SBTopic
 
 
 class StorybookProcessor(ProcessorBase[StorybookState]):

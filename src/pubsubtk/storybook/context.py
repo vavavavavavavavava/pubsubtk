@@ -8,7 +8,7 @@ from typing import Any, Callable, List, Sequence, Type
 
 from pydantic import BaseModel
 
-from .meta import KnobSpec
+from pubsubtk.storybook.meta import KnobSpec
 
 
 class StoryContext(BaseModel):

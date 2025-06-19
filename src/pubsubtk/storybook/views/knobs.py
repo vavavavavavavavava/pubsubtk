@@ -6,10 +6,9 @@ from tkinter import ttk
 from typing import Any, List
 
 from pubsubtk import ContainerComponentTtk
-
-from ..meta import KnobSpec, KnobControl
-from ..state import StorybookState
-from ..topic import SBTopic
+from pubsubtk.storybook.meta import KnobControl, KnobSpec
+from pubsubtk.storybook.state import StorybookState
+from pubsubtk.storybook.topic import SBTopic
 
 
 class KnobPanel(ContainerComponentTtk[StorybookState]):
@@ -125,7 +124,7 @@ class KnobPanel(ContainerComponentTtk[StorybookState]):
         """個別のコントロールエディタを作成"""
         spec = control.spec
         var = control.var
-        
+
         # メインフレーム
         main_frame = ttk.Frame(self.scrollable_frame)
         main_frame.pack(fill="x", padx=10, pady=5)
@@ -231,4 +230,6 @@ class KnobPanel(ContainerComponentTtk[StorybookState]):
         return lambda *_: self._publish_knob(control)
 
     def _publish_knob(self, control: KnobControl):
-        self.publish(SBTopic.KNOB_CHANGED, name=control.spec.name, value=control.var.get())
+        self.publish(
+            SBTopic.KNOB_CHANGED, name=control.spec.name, value=control.var.get()
+        )

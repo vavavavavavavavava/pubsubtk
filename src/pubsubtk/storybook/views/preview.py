@@ -5,11 +5,10 @@ import tkinter as tk
 from tkinter import ttk
 
 from pubsubtk import ContainerComponentTtk
-
-from ..context import StoryContext
-from ..registry import StoryRegistry
-from ..state import StorybookState
-from ..topic import SBTopic
+from pubsubtk.storybook.context import StoryContext
+from pubsubtk.storybook.registry import StoryRegistry
+from pubsubtk.storybook.state import StorybookState
+from pubsubtk.storybook.topic import SBTopic
 
 
 class PreviewFrame(ContainerComponentTtk[StorybookState]):
