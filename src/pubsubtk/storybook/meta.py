@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 
 class KnobSpec(BaseModel):
-    """Knob（動的プロパティ）の仕様"""
+    """Knob（動的プロパティ）の仕様（State用・シリアライズ可能）"""
 
     name: str
     type_: Type = Field(..., alias="type")
@@ -19,7 +19,16 @@ class KnobSpec(BaseModel):
     range: tuple[Any, Any, Any] | None = None
     choices: List[str] | None = None
     multiline: bool = False
-    var: tk.Variable  # 実際の tk.Variable
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class KnobControl(BaseModel):
+    """UI用のKnob制御オブジェクト（tkinter.Varを含む）"""
+
+    spec: KnobSpec
+    var: tk.Variable
 
     class Config:
         arbitrary_types_allowed = True

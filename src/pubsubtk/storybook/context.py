@@ -55,7 +55,6 @@ class StoryContext(BaseModel):
             range=tuple(range) if range else None,
             choices=choices,
             multiline=multiline,
-            var=var,
         )
         self._knob_specs.append(spec)
         return var
