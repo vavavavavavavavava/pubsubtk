@@ -6,7 +6,8 @@
       "Bash(poetry run python:*)",
       "Bash(grep:*)",
       "Bash(rg:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": []
   }

@@ -1,7 +1,7 @@
 # storybook/state.py - Pydantic 状態モデル
 """Storybook 用の状態オブジェクト。"""
 
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel
 
@@ -11,3 +11,4 @@ class StorybookState(BaseModel):
 
     active_story_id: Optional[str] = None
     layout_mode: str = "normal"  # "normal" or "fullscreen"
+    knob_values: Dict[str, Any] = {}  # Knob値の保存（ストーリー間で共有）

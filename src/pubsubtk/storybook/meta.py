@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Any, Callable, List, Type
+from typing import Callable, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class StoryMeta(BaseModel):
