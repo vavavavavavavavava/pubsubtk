@@ -2,8 +2,9 @@
 """PubSubTk Processor: Story 選択・レイアウト切替を管理。"""
 
 from pubsubtk import ProcessorBase
-from pubsubtk.storybook.state import StorybookState
-from pubsubtk.storybook.topic import SBTopic
+
+from ..core.state import StorybookState
+from .topics import SBTopic
 
 
 class StorybookProcessor(ProcessorBase[StorybookState]):

@@ -6,8 +6,8 @@ from __future__ import annotations
 import re
 from typing import Callable
 
-from pubsubtk.storybook.meta import StoryMeta
-from pubsubtk.storybook.registry import StoryRegistry
+from .meta import StoryMeta
+from .registry import StoryRegistry
 
 
 def _slugify(text: str) -> str:

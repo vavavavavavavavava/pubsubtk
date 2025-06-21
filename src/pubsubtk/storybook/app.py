@@ -2,8 +2,9 @@
 """ThemedApplicationベースのStorybookApplication。"""
 
 from pubsubtk import ThemedApplication
-from pubsubtk.storybook.container import StorybookContainer
-from pubsubtk.storybook.state import StorybookState
+
+from .core.state import StorybookState
+from .ui.container import StorybookContainer
 
 
 class StorybookApplication(ThemedApplication[StorybookState]):

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import List
 
-from pubsubtk.storybook.meta import StoryMeta
+from pubsubtk.storybook.core.meta import StoryMeta
 
 
 class StoryRegistry:

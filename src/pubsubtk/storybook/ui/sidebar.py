@@ -5,9 +5,10 @@ import tkinter as tk
 from tkinter import ttk
 
 from pubsubtk import ContainerComponentTtk
-from pubsubtk.storybook.registry import StoryRegistry
-from pubsubtk.storybook.state import StorybookState
-from pubsubtk.storybook.topic import SBTopic
+
+from ..core.registry import StoryRegistry
+from ..core.state import StorybookState
+from ..processors.topics import SBTopic
 
 
 class SidebarView(ContainerComponentTtk[StorybookState]):

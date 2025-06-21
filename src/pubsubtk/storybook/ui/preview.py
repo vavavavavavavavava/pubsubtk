@@ -5,9 +5,10 @@ import tkinter as tk
 from tkinter import ttk
 
 from pubsubtk import ContainerComponentTtk
-from pubsubtk.storybook.context import StoryContext
-from pubsubtk.storybook.registry import StoryRegistry
-from pubsubtk.storybook.state import StorybookState
+
+from ..core.context import StoryContext
+from ..core.registry import StoryRegistry
+from ..core.state import StorybookState
 
 
 class PreviewFrame(ContainerComponentTtk[StorybookState]):
@@ -59,7 +60,6 @@ class PreviewFrame(ContainerComponentTtk[StorybookState]):
         meta = stories[0]
 
         try:
-
             # コンテンツフレーム作成
             content_frame = ttk.Frame(self)
             content_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -88,10 +88,9 @@ class PreviewFrame(ContainerComponentTtk[StorybookState]):
 
             widget = meta.factory(ctx)
             widget.pack(fill=tk.BOTH, expand=True)
-            
+
             # KnobPanelにKnob情報を送信
             self.publish("storybook.knobs.update", knob_values=ctx.knob_values)
-
 
         except Exception as e:
             self._show_error_state(f"Error rendering story: {str(e)}")
@@ -120,7 +119,7 @@ class PreviewFrame(ContainerComponentTtk[StorybookState]):
         icon_label.pack(pady=(20, 10))
 
         ttk.Label(center_frame, text=message, font=("", 12), foreground="red").pack()
-    
+
     def _refresh_story_only(self):
         """Knob値変更時のstoryのみ再描画（KnobUIは更新しない）"""
         # 既存ウィジェット破棄
@@ -168,14 +167,13 @@ class PreviewFrame(ContainerComponentTtk[StorybookState]):
 
             widget = meta.factory(ctx)
             widget.pack(fill=tk.BOTH, expand=True)
-            
+
             # 注意: KnobPanelには通知しない（knob値変更時はUI再構築を避ける）
 
         except Exception as e:
             self._show_error_state(f"Error rendering story: {str(e)}")
-    
+
     def _on_knob_changed(self, knob_name: str, value):
         """Knob値変更時のコールバック（ストーリー再描画）"""
         # knob値変更時はstoryのみ更新、KnobUIは再構築しない
         self._refresh_story_only()
-

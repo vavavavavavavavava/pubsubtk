@@ -2,12 +2,13 @@
 """Storybook を構成する最上位 Container。"""
 
 from pubsubtk import ContainerComponentTtk
-from pubsubtk.storybook.processor import StorybookProcessor
-from pubsubtk.storybook.state import StorybookState
-from pubsubtk.storybook.template import StorybookTemplate
-from pubsubtk.storybook.views.preview import PreviewFrame
-from pubsubtk.storybook.views.sidebar import SidebarView
-from pubsubtk.storybook.knob import KnobPanel
+
+from ..core.state import StorybookState
+from ..knobs import KnobPanel
+from ..processors.processor import StorybookProcessor
+from .preview import PreviewFrame
+from .sidebar import SidebarView
+from .template import StorybookTemplate
 
 
 class StorybookContainer(ContainerComponentTtk[StorybookState]):
