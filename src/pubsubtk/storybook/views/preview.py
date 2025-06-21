@@ -8,7 +8,6 @@ from pubsubtk import ContainerComponentTtk
 from pubsubtk.storybook.context import StoryContext
 from pubsubtk.storybook.registry import StoryRegistry
 from pubsubtk.storybook.state import StorybookState
-from pubsubtk.storybook.variable_manager import get_variable_manager
 
 
 class PreviewFrame(ContainerComponentTtk[StorybookState]):
@@ -56,9 +55,6 @@ class PreviewFrame(ContainerComponentTtk[StorybookState]):
         meta = stories[0]
 
         try:
-            # Story切り替え時に変数をクリア
-            var_manager = get_variable_manager()
-            var_manager.clear_story_variables()
 
             # コンテンツフレーム作成
             content_frame = ttk.Frame(self)
@@ -88,8 +84,6 @@ class PreviewFrame(ContainerComponentTtk[StorybookState]):
             widget = meta.factory(ctx)
             widget.pack(fill=tk.BOTH, expand=True)
 
-            # KnobPanelに直接KnobSpecsを通知
-            self._notify_knob_specs(ctx.knob_specs)
 
         except Exception as e:
             self._show_error_state(f"Error rendering story: {str(e)}")
@@ -119,8 +113,3 @@ class PreviewFrame(ContainerComponentTtk[StorybookState]):
 
         ttk.Label(center_frame, text=message, font=("", 12), foreground="red").pack()
 
-    def _notify_knob_specs(self, knob_specs):
-        """KnobPanelにKnobSpecsを直接通知"""
-        # 現在のアプリケーション内でKnobPanelを探して直接メソッド呼び出し
-        # ここでは簡単のためPublishを使用（後でAppレベルでの直接参照に変更可能）
-        self.publish("storybook.knobs.update", knob_specs=knob_specs)

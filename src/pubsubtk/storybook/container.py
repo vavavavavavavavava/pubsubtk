@@ -5,7 +5,6 @@ from pubsubtk import ContainerComponentTtk
 from pubsubtk.storybook.processor import StorybookProcessor
 from pubsubtk.storybook.state import StorybookState
 from pubsubtk.storybook.template import StorybookTemplate
-from pubsubtk.storybook.views.knobs import KnobPanel
 from pubsubtk.storybook.views.preview import PreviewFrame
 from pubsubtk.storybook.views.sidebar import SidebarView
 
@@ -21,7 +20,6 @@ class StorybookContainer(ContainerComponentTtk[StorybookState]):
         # 子ビューをスロットに差し込む（テンプレート経由）
         self.template.switch_slot_content("sidebar", SidebarView)
         self.template.switch_slot_content("preview", PreviewFrame)
-        self.template.switch_slot_content("knobs", KnobPanel)
 
         # Processor 登録
         self.pub_register_processor(StorybookProcessor, "storybook")
