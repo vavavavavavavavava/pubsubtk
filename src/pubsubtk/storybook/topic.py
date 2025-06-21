@@ -8,5 +8,4 @@ from pubsubtk import AutoNamedTopic
 
 class SBTopic(AutoNamedTopic):
     SELECT_STORY = auto()
-    KNOB_CHANGED = auto()
     TOGGLE_CANVAS = auto()

@@ -4,6 +4,7 @@
 import tkinter as tk
 from tkinter import ttk
 
+from pubsubtk.core.pubsub_base import enable_pubsub_debug_logging
 from pubsubtk.storybook import StorybookApplication, story
 from pubsubtk.storybook.context import StoryContext
 
@@ -172,7 +173,7 @@ def ttk_progress_bar(ctx: StoryContext):
 if __name__ == "__main__":
     # 自動検索版を使う場合
     # discover_stories("src")  # src ディレクトリから自動検索
-
+    enable_pubsub_debug_logging()
     # 手動版（上記のstory定義が既にここで実行されているため自動登録済み）
     app = StorybookApplication(
         title="PubSubTk Storybook Demo",

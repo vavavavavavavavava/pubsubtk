@@ -9,6 +9,7 @@ from typing import Any, Callable, List, Sequence, Type
 from pydantic import BaseModel
 
 from pubsubtk.storybook.meta import KnobSpec
+from pubsubtk.storybook.variable_manager import get_variable_manager
 
 
 class StoryContext(BaseModel):
@@ -38,15 +39,6 @@ class StoryContext(BaseModel):
     ) -> tk.Variable:
         """Knob を宣言し tk.Variable を返す。"""
 
-        if type is int:
-            var: tk.Variable = tk.IntVar(value=default)
-        elif type is float:
-            var = tk.DoubleVar(value=default)
-        elif type is bool:
-            var = tk.BooleanVar(value=default)
-        else:
-            var = tk.StringVar(value=default)
-
         spec = KnobSpec(
             name=name,
             type=type,
@@ -57,7 +49,10 @@ class StoryContext(BaseModel):
             multiline=multiline,
         )
         self._knob_specs.append(spec)
-        return var
+
+        # VariableManagerから共有変数を取得
+        var_manager = get_variable_manager()
+        return var_manager.create_or_get_variable(spec)
 
     def publish(self, topic: str, **kwargs: Any) -> None:
         """Story 空間向け PubSub 発火（名前空間前置き）。"""

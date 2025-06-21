@@ -3,12 +3,12 @@
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, List
+from typing import List
 
 from pubsubtk import ContainerComponentTtk
 from pubsubtk.storybook.meta import KnobControl, KnobSpec
 from pubsubtk.storybook.state import StorybookState
-from pubsubtk.storybook.topic import SBTopic
+from pubsubtk.storybook.variable_manager import get_variable_manager
 
 
 class KnobPanel(ContainerComponentTtk[StorybookState]):
@@ -46,7 +46,7 @@ class KnobPanel(ContainerComponentTtk[StorybookState]):
 
     def setup_subscriptions(self):
         self.sub_for_refresh(str(self.store.state.active_story_id), self.clear_panel)
-        self.subscribe(SBTopic.KNOB_CHANGED, self._update_knobs)
+        self.subscribe("storybook.knobs.update", self._update_knobs)
 
     def refresh_from_state(self):
         self.clear_panel()
@@ -72,21 +72,18 @@ class KnobPanel(ContainerComponentTtk[StorybookState]):
             empty_frame, text="No controls available", font=("", 10), foreground="gray"
         ).pack()
 
-    def _update_knobs(self, name: str, value: Any):
-        if name != "__init__":
-            return  # ここでは初回 only
-
-        knob_specs: List[KnobSpec] = value
+    def _update_knobs(self, knob_specs: List[KnobSpec]):
         self.clear_panel()
 
         if not knob_specs:
             self._show_empty_state()
             return
 
-        # KnobControlオブジェクトを作成
+        # VariableManagerから共有変数を取得してKnobControlオブジェクトを作成
+        var_manager = get_variable_manager()
         self.knob_controls = []
         for spec in knob_specs:
-            var = self._create_tkinter_var(spec)
+            var = var_manager.create_or_get_variable(spec)
             control = KnobControl(spec=spec, var=var)
             self.knob_controls.append(control)
 
@@ -107,18 +104,6 @@ class KnobPanel(ContainerComponentTtk[StorybookState]):
         # コントロール群
         for i, control in enumerate(self.knob_controls):
             self._create_editor(control, i == len(self.knob_controls) - 1)
-
-    def _create_tkinter_var(self, spec: KnobSpec) -> tk.Variable:
-        """KnobSpecから適切なtkinter.Variableを作成"""
-        if spec.type_ is bool:
-            var = tk.BooleanVar(value=spec.default)
-        elif spec.type_ is int:
-            var = tk.IntVar(value=spec.default)
-        elif spec.type_ is float:
-            var = tk.DoubleVar(value=spec.default)
-        else:
-            var = tk.StringVar(value=str(spec.default))
-        return var
 
     def _create_editor(self, control: KnobControl, is_last: bool = False):
         """個別のコントロールエディタを作成"""
@@ -224,12 +209,9 @@ class KnobPanel(ContainerComponentTtk[StorybookState]):
             )
 
     def _callback(self, control: KnobControl):
-        return lambda: self._publish_knob(control)
+        # tk.Variable共有により自動同期されるため、何もしない
+        return lambda: None
 
     def _on_change(self, control: KnobControl):
-        return lambda *_: self._publish_knob(control)
-
-    def _publish_knob(self, control: KnobControl):
-        self.publish(
-            SBTopic.KNOB_CHANGED, name=control.spec.name, value=control.var.get()
-        )
+        # tk.Variable共有により自動同期されるため、何もしない
+        return lambda *_: None
