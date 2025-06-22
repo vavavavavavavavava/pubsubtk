@@ -32,6 +32,11 @@ class KnobControlBase:
 class TextKnobControl(KnobControlBase):
     """テキスト入力Knob"""
 
+    def __init__(self, parent, knob_value, on_change):
+        super().__init__(parent, knob_value, on_change)
+        self._debounce_timer = None
+        self._debounce_delay = 300  # 300ms
+
     def _setup_ui(self):
         spec = self.knob_value.spec
 
@@ -53,20 +58,43 @@ class TextKnobControl(KnobControlBase):
         self.widget.pack(side="left", fill="x", expand=True)
 
     def _on_var_change(self, *args):
-        """変数変更時"""
+        """変数変更時（デバウンス付き）"""
         new_value = self.var.get()
         self.knob_value.value = new_value
-        self.on_change(new_value)
+        
+        # 既存のタイマーをキャンセル
+        if self._debounce_timer:
+            self.frame.after_cancel(self._debounce_timer)
+        
+        # 新しいタイマーを設定
+        self._debounce_timer = self.frame.after(
+            self._debounce_delay, 
+            lambda: self.on_change(new_value)
+        )
 
     def _on_text_change(self, event):
-        """テキスト変更時"""
+        """テキスト変更時（デバウンス付き）"""
         new_value = self.widget.get("1.0", "end-1c")
         self.knob_value.value = new_value
-        self.on_change(new_value)
+        
+        # 既存のタイマーをキャンセル
+        if self._debounce_timer:
+            self.frame.after_cancel(self._debounce_timer)
+        
+        # 新しいタイマーを設定
+        self._debounce_timer = self.frame.after(
+            self._debounce_delay, 
+            lambda: self.on_change(new_value)
+        )
 
 
 class NumberKnobControl(KnobControlBase):
     """数値入力Knob（スライダー付き）"""
+
+    def __init__(self, parent, knob_value, on_change):
+        super().__init__(parent, knob_value, on_change)
+        self._debounce_timer = None
+        self._debounce_delay = 300  # 300ms
 
     def _setup_ui(self):
         spec = self.knob_value.spec
@@ -109,15 +137,29 @@ class NumberKnobControl(KnobControlBase):
             pass
 
     def _on_scale_change(self, *args):
-        """スライダー変更時"""
+        """スライダー変更時（デバウンス付き）"""
         new_value = self.knob_value.spec.type_(self.scale_var.get())
         self.var.set(str(new_value))
         self.knob_value.value = new_value
-        self.on_change(new_value)
+        
+        # 既存のタイマーをキャンセル
+        if self._debounce_timer:
+            self.frame.after_cancel(self._debounce_timer)
+        
+        # 新しいタイマーを設定
+        self._debounce_timer = self.frame.after(
+            self._debounce_delay, 
+            lambda: self.on_change(new_value)
+        )
 
 
 class BooleanKnobControl(KnobControlBase):
     """ブール値チェックボックス"""
+
+    def __init__(self, parent, knob_value, on_change):
+        super().__init__(parent, knob_value, on_change)
+        self._debounce_timer = None
+        self._debounce_delay = 100  # 100ms (shorter for boolean)
 
     def _setup_ui(self):
         spec = self.knob_value.spec
@@ -129,14 +171,28 @@ class BooleanKnobControl(KnobControlBase):
         self.var.trace_add("write", self._on_change_callback)
 
     def _on_change_callback(self, *args):
-        """チェックボックス変更時"""
+        """チェックボックス変更時（デバウンス付き）"""
         new_value = self.var.get()
         self.knob_value.value = new_value
-        self.on_change(new_value)
+        
+        # 既存のタイマーをキャンセル
+        if self._debounce_timer:
+            self.frame.after_cancel(self._debounce_timer)
+        
+        # 新しいタイマーを設定
+        self._debounce_timer = self.frame.after(
+            self._debounce_delay, 
+            lambda: self.on_change(new_value)
+        )
 
 
 class SelectKnobControl(KnobControlBase):
     """選択肢ドロップダウン"""
+
+    def __init__(self, parent, knob_value, on_change):
+        super().__init__(parent, knob_value, on_change)
+        self._debounce_timer = None
+        self._debounce_delay = 100  # 100ms (shorter for selection)
 
     def _setup_ui(self):
         spec = self.knob_value.spec
@@ -159,10 +215,19 @@ class SelectKnobControl(KnobControlBase):
         self.var.trace_add("write", self._on_change_callback)
 
     def _on_change_callback(self, *args):
-        """ドロップダウン変更時"""
+        """ドロップダウン変更時（デバウンス付き）"""
         new_value = self.var.get()
         self.knob_value.value = new_value
-        self.on_change(new_value)
+        
+        # 既存のタイマーをキャンセル
+        if self._debounce_timer:
+            self.frame.after_cancel(self._debounce_timer)
+        
+        # 新しいタイマーを設定
+        self._debounce_timer = self.frame.after(
+            self._debounce_delay, 
+            lambda: self.on_change(new_value)
+        )
 
 
 def create_knob_control(
