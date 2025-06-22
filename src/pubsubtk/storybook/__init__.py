@@ -6,6 +6,7 @@
 """
 
 from .app import StorybookApplication
+from .core.context import StoryContext
 from .core.decorator import story
 
-__all__ = ["story", "StorybookApplication"]
+__all__ = ["story", "StorybookApplication", "StoryContext"]

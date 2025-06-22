@@ -5,14 +5,13 @@ import tkinter as tk
 from tkinter import ttk
 
 from pubsubtk.core.pubsub_base import enable_pubsub_debug_logging
-from pubsubtk.storybook import StorybookApplication, story
-from pubsubtk.storybook.core.context import StoryContext
+from pubsubtk.storybook import StorybookApplication, StoryContext, story
 
 
 # ------------------------------------------------------------------ #
 # Story 定義例
 @story("UI.Label.Primary")
-def label_primary(ctx):
+def label_primary(ctx: StoryContext):
     """動的テキスト & サイズのラベル"""
     text = ctx.knob("text", str, "Hello Storybook", desc="表示するテキスト")
     size = ctx.knob("size", int, 24, desc="フォントサイズ", range_=(8, 64))
