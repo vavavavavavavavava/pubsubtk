@@ -47,5 +47,5 @@ source_code_sections:
 # サンプルアプリケーション設定
 sample_apps:
   - title: "全機能を活用したシンプルなカウンターアプリ"
-    path: "tests/sample_app/main.py"
+    path: "tests/examples/comprehensive/main.py"
     description: "PubSubDefaultTopicBaseの全メソッドを使用した小規模なデモアプリケーション"

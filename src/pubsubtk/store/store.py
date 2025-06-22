@@ -8,7 +8,7 @@ Pydantic モデルを用いた型安全な状態管理を提供します。
 
 import copy
 from collections import defaultdict
-from typing import Any, Generic, Optional, Type, TypeVar, cast
+from typing import Any, Generic, Type, TypeVar, cast
 
 from pydantic import BaseModel
 
@@ -54,9 +54,10 @@ class StateProxy(Generic[TState]):
         return StateProxy(self._store, new_path)
 
     def __repr__(self) -> str:
-        """パス文字列を返す。"""
+        """State型名を含むパス文字列を返す。"""
 
-        return f"{self._path}"
+        prefix = self._store._state_class.__name__
+        return f"{prefix}.{self._path}" if self._path else prefix
 
     __str__ = __repr__
 
@@ -149,7 +150,10 @@ class Store(PubSubBase, Generic[TState]):
             state_path: 変更対象の属性パス（例: ``"foo.bar"``）。
             new_value: 新しく設定する値。
         """
-        target_obj, attr_name, old_value = self._resolve_path(str(state_path))
+        try:
+            target_obj, attr_name, old_value = self._resolve_path(str(state_path))
+        except ValueError:
+            return
 
         # Undo履歴をキャプチャ（既存の値を記録）
         self._capture_for_undo(str(state_path), old_value)
@@ -174,7 +178,10 @@ class Store(PubSubBase, Generic[TState]):
             state_path: 追加先となるリストの属性パス。
             item: 追加する要素。
         """
-        target_obj, attr_name, current_list = self._resolve_path(str(state_path))
+        try:
+            target_obj, attr_name, current_list = self._resolve_path(str(state_path))
+        except ValueError:
+            return
 
         if not isinstance(current_list, list):
             raise TypeError(f"Property at '{state_path}' is not a list")
@@ -208,7 +215,10 @@ class Store(PubSubBase, Generic[TState]):
             key: 追加するキー。
             value: 追加する値。
         """
-        target_obj, attr_name, current_dict = self._resolve_path(str(state_path))
+        try:
+            target_obj, attr_name, current_dict = self._resolve_path(str(state_path))
+        except ValueError:
+            return
 
         if not isinstance(current_dict, dict):
             raise TypeError(f"Property at '{state_path}' is not a dict")
@@ -239,6 +249,8 @@ class Store(PubSubBase, Generic[TState]):
             state_path: 追跡対象の状態パス
             max_history: 保持する履歴の最大数（デフォルト: 10）
         """
+        if not self._normalize_state_path(state_path)[1]:
+            return
         self._undo_enabled.add(state_path)
         self._max_histories[state_path] = max_history
 
@@ -255,6 +267,8 @@ class Store(PubSubBase, Generic[TState]):
         Args:
             state_path: 無効化する状態パス
         """
+        if not self._normalize_state_path(state_path)[1]:
+            return
         self._undo_enabled.discard(state_path)
         self._undo_stacks.pop(state_path, None)
         self._redo_stacks.pop(state_path, None)
@@ -273,13 +287,11 @@ class Store(PubSubBase, Generic[TState]):
 
         stack = self._undo_stacks[state_path]
         stack.append(copy.deepcopy(old_value))
-        print("old_value:", old_value)
 
         # 履歴上限の管理
         max_len = self._max_histories.get(state_path, 10)
         if len(stack) > max_len:
             stack.pop(0)  # 最古の履歴を削除
-        print("stack:", stack)
 
         # 新しい変更が発生したのでRedo履歴をクリア
         self._redo_stacks[state_path].clear()
@@ -289,6 +301,9 @@ class Store(PubSubBase, Generic[TState]):
 
     def _undo(self, state_path: str) -> None:
         """指定パスの状態を 1 つ前の値に戻す。"""
+        if not self._normalize_state_path(state_path)[1]:
+            return
+
         if state_path not in self._undo_enabled:
             return
 
@@ -319,6 +334,9 @@ class Store(PubSubBase, Generic[TState]):
         Args:
             state_path: Redoを実行する状態パス
         """
+        if not self._normalize_state_path(state_path)[1]:
+            return
+
         if state_path not in self._undo_enabled:
             return
 
@@ -360,6 +378,29 @@ class Store(PubSubBase, Generic[TState]):
             redo_count=len(redo_stack),
         )
 
+    def _normalize_state_path(self, state_path: str) -> tuple[str, bool]:
+        """State型名プレフィックスを処理して自ストア向けか判定する。
+
+        Args:
+            state_path: 入力された状態パス。
+
+        Returns:
+            正規化後のパスと自ストア向けかどうかのフラグ。
+        """
+
+        segments = state_path.split(".")
+        if not segments:
+            return "", True
+
+        first = segments[0]
+        if first == self._state_class.__name__:
+            return ".".join(segments[1:]), True
+
+        for cls in _stores.keys():
+            if first == cls.__name__ and cls is not self._state_class:
+                return "", False
+        return state_path, True
+
     def _resolve_path(self, path: str) -> tuple[Any, str, Any]:
         """
         属性パスを解決し、対象オブジェクト・属性名・現在値を返す。
@@ -369,6 +410,10 @@ class Store(PubSubBase, Generic[TState]):
         Returns:
             (対象オブジェクト, 属性名, 現在値)
         """
+        path, available = self._normalize_state_path(path)
+        if not available:
+            raise ValueError("Path does not belong to this store")
+
         segments = path.split(".")
 
         if not segments:
@@ -394,7 +439,13 @@ class Store(PubSubBase, Generic[TState]):
     def _validate_and_set_value(
         self, target_obj: Any, attr_name: str, new_value: Any
     ) -> None:
-        """属性値を型検証してから設定する。"""
+        """属性値を型検証してから設定する。
+
+        Args:
+            target_obj: 値を設定する対象オブジェクト。
+            attr_name: 設定する属性名。
+            new_value: 新しい値。
+        """
         # Pydanticモデルの場合、フィールドの型情報を取得
         if isinstance(target_obj, BaseModel):
             model_fields = target_obj.__class__.model_fields
@@ -415,29 +466,22 @@ class Store(PubSubBase, Generic[TState]):
         setattr(target_obj, attr_name, new_value)
 
 
-# 実体としてはどんな State 型でも格納できるので Any
-_store: Optional[Store[Any]] = None
+# State 型ごとに生成した Store を保持する辞書
+_stores: dict[Type[BaseModel], Store[Any]] = {}
 
 
 def get_store(state_cls: Type[TState]) -> Store[TState]:
-    """グローバルな ``Store`` インスタンスを取得する。
+    """指定された ``state_cls`` 用の ``Store`` インスタンスを返す。
+
+    同じ ``state_cls`` に対しては常に同じ ``Store`` を返し、
+    初回呼び出し時のみ生成して内部で保持する。
 
     Args:
         state_cls: ``Store`` 生成に使用する状態モデルの型。
 
     Returns:
-        共有 ``Store`` インスタンス。
-
-    Raises:
-        RuntimeError: 既に別の ``state_cls`` で生成されている場合。
+        ``state_cls`` に対応する ``Store`` インスタンス。
     """
-    global _store
-    if _store is None:
-        _store = Store(state_cls)
-    else:
-        existing = getattr(_store, "_state_class", None)
-        if existing is not state_cls:
-            raise RuntimeError(
-                f"Store は既に {existing!r} で生成されています（呼び出し時の state_cls={state_cls!r}）"
-            )
-    return cast(Store[TState], _store)
+    if state_cls not in _stores:
+        _stores[state_cls] = Store(state_cls)
+    return cast(Store[TState], _stores[state_cls])
