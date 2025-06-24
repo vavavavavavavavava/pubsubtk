@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pubsubtk"
-version = "0.3.0"
+version = "0.3.1"
 description = "tkinterとpypubsubを組み合わせた全く新しい()アーキテクチャ"
 authors = ["va"]
 readme = "README.md"
