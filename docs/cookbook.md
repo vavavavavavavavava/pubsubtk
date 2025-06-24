@@ -1,4 +1,3 @@
-
 # 実装レシピ集（Cookbook）
 
 PubSubTkでよく使う「ちょいネタ」や実践Tipsをまとめています。
@@ -127,6 +126,94 @@ class MyButton(PresentationalComponentTk):
         self.button.pack()
     def on_click(self):
         self.trigger_event("clicked")
+```
+
+---
+
+## Storybook でのコンポーネント開発
+
+### 基本的なストーリー定義
+
+```python
+from pubsubtk.storybook import story
+
+@story("Components.Button")
+def button_story(ctx):
+    import tkinter as tk
+    btn = tk.Button(ctx.parent, text="Click me!")
+    btn.pack()
+    return btn
+```
+
+### Knobを使った動的プロパティ
+
+```python
+@story("Components.Label")
+def label_story(ctx):
+    import tkinter as tk
+    
+    # テキストを動的に変更
+    text = ctx.knob("text", str, "Hello World")
+    font_size = ctx.knob("fontSize", int, 12, range_=(8, 48))
+    color = ctx.knob("color", str, "black", choices=["black", "red", "blue", "green"])
+    
+    label = tk.Label(
+        ctx.parent,
+        text=text.value,
+        font=("Arial", font_size.value),
+        fg=color.value
+    )
+    label.pack(padx=20, pady=20)
+    return label
+```
+
+### PubSubコンポーネントのストーリー
+
+```python
+from pubsubtk import PresentationalComponentTk
+
+class MyCard(PresentationalComponentTk):
+    def setup_ui(self):
+        import tkinter as tk
+        self.title_label = tk.Label(self, font=("Arial", 14, "bold"))
+        self.title_label.pack()
+        self.content_label = tk.Label(self)
+        self.content_label.pack()
+        
+    def update_data(self, title: str, content: str):
+        self.title_label.config(text=title)
+        self.content_label.config(text=content)
+
+@story("Components.Card")
+def card_story(ctx):
+    # Knobで動的にデータを設定
+    title = ctx.knob("title", str, "Card Title")
+    content = ctx.knob("content", str, "This is the card content.", multiline=True)
+    
+    card = MyCard(ctx.parent)
+    card.update_data(title.value, content.value)
+    card.pack(fill="both", expand=True, padx=20, pady=20)
+    
+    # Knobの値が変更されたら自動更新
+    title.add_change_callback(lambda v: card.update_data(v, content.value))
+    content.add_change_callback(lambda v: card.update_data(title.value, v))
+    
+    return card
+```
+
+### ストーリーの自動検出
+
+```python
+# run_storybook.py
+from pubsubtk.storybook import StorybookApplication
+from pubsubtk.storybook.core.auto_discover import discover_stories
+
+if __name__ == "__main__":
+    # src/以下の@storyを自動検出
+    discover_stories("src")
+    
+    app = StorybookApplication()
+    app.run()
 ```
 
 ---

@@ -9,6 +9,7 @@
 - **3層分離（Container / Presentational / Processor）**による保守性・再利用性
 - **リアクティブUI**と柔軟な画面遷移
 - **StateProxy**によるIDE連携（補完・定義ジャンプ・リファクタリング◎）
+- **Storybook**によるコンポーネント開発環境（分離開発・動的Knobコントロール）
 
 ## 🚀 クイックスタート
 
@@ -57,9 +58,34 @@ graph LR
     style Processor fill:#fff3e0
 ```
 
+## 🎨 Storybook サポート
+
+PubSubTkには、UIコンポーネントを独立して開発・テストできるStorybookが組み込まれています：
+
+```python
+from pubsubtk.storybook import story, StorybookApplication
+
+@story("Button.Primary")
+def primary_button_story(ctx):
+    import tkinter as tk
+    
+    # 動的コントロール
+    text = ctx.knob("text", str, "Click me!")
+    size = ctx.knob("size", int, 12, range_=(8, 24))
+    
+    btn = tk.Button(ctx.parent, text=text.value, font=("", size.value))
+    btn.pack(padx=20, pady=20)
+    return btn
+
+if __name__ == "__main__":
+    app = StorybookApplication()
+    app.run()
+```
+
 ## 📚 まず読む
 
 - [はじめに](getting-started.md)
 - [レシピ集](cookbook.md)
 - [実装サンプル](examples.md)
+- [Storybookガイド](storybook-guide.md)
 - [FAQ](faq.md)
