@@ -44,6 +44,19 @@ source_code_sections:
       - path: "src/pubsubtk/processor/processor_base.py"
         description: "ビジネスロジックを担う Processor 用の抽象基底クラス"
 
+  - name: "Storybookシステム"
+    files:
+      - path: "src/pubsubtk/storybook/app.py"
+        description: "Storybookアプリケーションクラス"
+      - path: "src/pubsubtk/storybook/core/decorator.py"
+        description: "@story デコレータと Story 登録機能"
+      - path: "src/pubsubtk/storybook/core/context.py"
+        description: "StoryContext - ストーリー実行時のコンテキストオブジェクト"
+      - path: "src/pubsubtk/storybook/knobs/types.py"
+        description: "Knob動的コントロールの型定義"
+      - path: "src/pubsubtk/storybook/ui/template.py"
+        description: "Storybookレイアウトテンプレート"
+
 # サンプルアプリケーション設定
 sample_apps:
   - title: "全機能を活用したシンプルなカウンターアプリ"

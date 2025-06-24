@@ -115,7 +115,198 @@ CSVやJSONを読み込んでテーブル表示・編集するアプリ例（詳�
 
 ---
 
-## 4. 他にも…
+## 4. Storybookを使ったコンポーネントカタログ
+
+UIコンポーネントライブラリをStorybookで開発・確認する完全な例です。
+
+```python
+# components/buttons.py
+from pubsubtk import PresentationalComponentTk
+from pubsubtk.storybook import story
+import tkinter as tk
+
+class PrimaryButton(PresentationalComponentTk):
+    def setup_ui(self):
+        self.button = tk.Button(
+            self,
+            bg="#007bff",
+            fg="white",
+            font=("Arial", 10, "bold"),
+            relief=tk.FLAT,
+            padx=20,
+            pady=10
+        )
+        self.button.pack()
+        
+    def set_text(self, text: str):
+        self.button.config(text=text)
+        
+    def set_command(self, command):
+        self.button.config(command=command)
+
+@story("Buttons.Primary")
+def primary_button_story(ctx):
+    text = ctx.knob("text", str, "Primary Button")
+    enabled = ctx.knob("enabled", bool, True)
+    
+    btn = PrimaryButton(ctx.parent)
+    btn.set_text(text.value)
+    btn.button.config(state="normal" if enabled.value else "disabled")
+    
+    # Knob変更時の更新
+    text.add_change_callback(lambda v: btn.set_text(v))
+    enabled.add_change_callback(
+        lambda v: btn.button.config(state="normal" if v else "disabled")
+    )
+    
+    btn.pack(padx=20, pady=20)
+    return btn
+
+# components/forms.py
+from tkinter import ttk
+
+class FormField(PresentationalComponentTk):
+    def setup_ui(self):
+        self.label = ttk.Label(self)
+        self.label.pack(anchor="w")
+        
+        self.entry = ttk.Entry(self, width=40)
+        self.entry.pack(fill="x", pady=(5, 0))
+        
+        self.error_label = ttk.Label(self, foreground="red", font=("Arial", 8))
+        self.error_label.pack(anchor="w")
+        
+    def set_label(self, text: str):
+        self.label.config(text=text)
+        
+    def set_error(self, error: str):
+        self.error_label.config(text=error)
+        
+    def get_value(self):
+        return self.entry.get()
+
+@story("Forms.TextField")
+def text_field_story(ctx):
+    label = ctx.knob("label", str, "Email Address")
+    placeholder = ctx.knob("placeholder", str, "user@example.com")
+    required = ctx.knob("required", bool, True)
+    error = ctx.knob("error", str, "", desc="Error message to display")
+    
+    field = FormField(ctx.parent)
+    field.set_label(label.value + (" *" if required.value else ""))
+    field.entry.insert(0, placeholder.value)
+    field.set_error(error.value)
+    
+    # 動的更新
+    label.add_change_callback(
+        lambda v: field.set_label(v + (" *" if required.value else ""))
+    )
+    error.add_change_callback(lambda v: field.set_error(v))
+    
+    field.pack(padx=20, pady=20, fill="x")
+    return field
+
+# run_storybook.py
+from pubsubtk.storybook import StorybookApplication
+from pubsubtk.storybook.core.auto_discover import discover_stories
+
+if __name__ == "__main__":
+    # components/以下の全ストーリーを自動検出
+    discover_stories("components")
+    
+    app = StorybookApplication(
+        theme="arc",
+        title="My Component Library",
+        geometry="1400x900"
+    )
+    app.run()
+```
+
+---
+
+## 5. 複合的なStorybookサンプル（状態付きコンポーネント）
+
+```python
+# components/counter_widget.py
+from pubsubtk import ContainerComponentTk
+from pubsubtk.storybook import story, StoryContext
+from pydantic import BaseModel
+import tkinter as tk
+
+class CounterState(BaseModel):
+    count: int = 0
+
+class CounterWidget(ContainerComponentTk[CounterState]):
+    def setup_ui(self):
+        self.label = tk.Label(self, font=("Arial", 24))
+        self.label.pack(pady=10)
+        
+        button_frame = tk.Frame(self)
+        button_frame.pack()
+        
+        tk.Button(button_frame, text="-", command=self.decrement).pack(side="left", padx=5)
+        tk.Button(button_frame, text="+", command=self.increment).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Reset", command=self.reset).pack(side="left", padx=5)
+        
+    def setup_subscriptions(self):
+        self.sub_for_refresh(self.store.state.count, self.update_display)
+        
+    def refresh_from_state(self):
+        self.update_display()
+        
+    def update_display(self):
+        count = self.store.get_current_state().count
+        self.label.config(text=str(count))
+        
+    def increment(self):
+        state = self.store.get_current_state()
+        self.pub_update_state(self.store.state.count, state.count + 1)
+        
+    def decrement(self):
+        state = self.store.get_current_state()
+        self.pub_update_state(self.store.state.count, state.count - 1)
+        
+    def reset(self):
+        self.pub_update_state(self.store.state.count, 0)
+
+@story("Widgets.Counter")
+def counter_story(ctx: StoryContext):
+    # Knobでカスタマイズ
+    initial_value = ctx.knob("initialValue", int, 0, range_=(-100, 100))
+    step = ctx.knob("step", int, 1, range_=(1, 10))
+    
+    # ローカルストアを作成
+    from pubsubtk import get_store
+    store = get_store(CounterState)
+    
+    # 初期値を設定
+    store.update_state("count", initial_value.value)
+    
+    # ウィジェットを作成
+    counter = CounterWidget(ctx.parent, store=store)
+    
+    # stepに応じてincrement/decrementを調整
+    original_increment = counter.increment
+    original_decrement = counter.decrement
+    
+    def custom_increment():
+        state = store.get_current_state()
+        store.update_state("count", state.count + step.value)
+        
+    def custom_decrement():
+        state = store.get_current_state()
+        store.update_state("count", state.count - step.value)
+        
+    counter.increment = custom_increment
+    counter.decrement = custom_decrement
+    
+    counter.pack(padx=40, pady=40)
+    return counter
+```
+
+---
+
+## 6. 他にも…
 
 * 設定ダイアログ付きツール
 * マルチ画面ウィザード

@@ -40,6 +40,7 @@ nav:
   - はじめに: getting-started.md
   - 実装レシピ集: cookbook.md
   - サンプル集: examples.md
+  - Storybookガイド: storybook-guide.md
   - FAQ: faq.md
   - リファレンス:
       - API概要: api/index.md

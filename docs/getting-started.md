@@ -1,4 +1,3 @@
-
 # はじめに
 
 PubSubTkで、型安全かつ疎結合なGUIアプリケーションを素早く開発しましょう。
@@ -103,7 +102,55 @@ if __name__ == "__main__":
 * 複数画面: `TemplateComponentTk` と `pub_switch_slot`
 * サブウィンドウ: `pub_open_subwindow`
 
-## 5. よくある開発Tips
+## 5. Storybook でコンポーネント開発
+
+PubSubTkには、コンポーネントを独立して開発・テストできるStorybookが含まれています。
+
+### 基本的な使い方
+
+```python
+from pubsubtk.storybook import story, StorybookApplication
+
+# ストーリーを定義
+@story("Button.Primary")
+def primary_button(ctx):
+    import tkinter as tk
+    button = tk.Button(ctx.parent, text="Primary Button")
+    button.pack(padx=20, pady=20)
+    return button
+
+# Storybookアプリを起動
+if __name__ == "__main__":
+    app = StorybookApplication()
+    app.run()
+```
+
+### Knobによる動的コントロール
+
+```python
+@story("Forms.Input")
+def input_field(ctx):
+    import tkinter as tk
+    
+    # Knobで動的に値を変更
+    placeholder = ctx.knob("placeholder", str, "Enter text...")
+    width = ctx.knob("width", int, 30, range_=(10, 50))
+    readonly = ctx.knob("readonly", bool, False)
+    
+    entry = tk.Entry(
+        ctx.parent, 
+        width=width.value,
+        state="readonly" if readonly.value else "normal"
+    )
+    entry.insert(0, placeholder.value)
+    entry.pack(padx=20, pady=20)
+    
+    return entry
+```
+
+詳細は[Storybookガイド](storybook-guide.md)を参照してください。
+
+## 6. よくある開発Tips
 
 * テーマ切り替え（`ThemedApplication`を利用）
 * 状態のバリデーション

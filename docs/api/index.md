@@ -41,6 +41,17 @@ PubSubTkは主に次のモジュール群で構成されています：
   - [`PresentationalComponentTk/Ttk`](pubsubtk/ui/base/presentational_base/#pubsubtk.ui.base.presentational_base.PresentationalComponentTk)
   - [`TemplateComponentTk/Ttk`](pubsubtk/ui/base/template_base/#pubsubtk.ui.base.template_base.TemplateComponentTk)
 
+### Storybook
+
+- **pubsubtk.storybook**  
+  - [`StorybookApplication`](pubsubtk/storybook/app/) … Storybookアプリケーション
+  - [`@story`](pubsubtk/storybook/core/decorator/) … ストーリー定義デコレータ
+  - [`StoryContext`](pubsubtk/storybook/core/context/) … ストーリー実行コンテキスト
+  
+- **pubsubtk.storybook.knobs**  
+  - [`KnobSpec`](pubsubtk/storybook/knobs/types/) … Knobの仕様定義
+  - [`KnobValue`](pubsubtk/storybook/knobs/types/) … Knob値オブジェクト
+
 ### Utilities
 
 - **pubsubtk.utils**  
@@ -60,6 +71,8 @@ PubSubTkは主に次のモジュール群で構成されています：
 | `PresentationalComponentTk` | 純粋表示UI | [pubsubtk.ui](pubsubtk/ui/) |
 | `ProcessorBase` | ビジネスロジック | [pubsubtk.processor](pubsubtk/processor/) |
 | `Store` | 状態管理 | [pubsubtk.store](pubsubtk/store/) |
+| `StorybookApplication` | コンポーネント開発環境 | [pubsubtk.storybook](pubsubtk/storybook/) |
+| `@story` | ストーリー定義 | [pubsubtk.storybook.core](pubsubtk/storybook/core/) |
 
 ### 主なメソッド
 
@@ -70,6 +83,7 @@ PubSubTkは主に次のモジュール群で構成されています：
 | `sub_state_changed()` | 状態変更監視 | Container |
 | `setup_subscriptions()` | 購読設定 | Container, Processor |
 | `refresh_from_state()` | UI更新 | Container |
+| `ctx.knob()` | Storybook動的コントロール | Story定義内 |
 
 ---
 
@@ -126,6 +140,25 @@ app.set_template(AppTemplate)
 app.pub_switch_slot("main", MainContainer)
 ```
 
+### Storybookでのコンポーネント開発
+
+```python
+from pubsubtk.storybook import story, StorybookApplication
+
+@story("Button.Primary")
+def primary_button(ctx):
+    text = ctx.knob("text", str, "Click me!")
+    size = ctx.knob("size", int, 12, range_=(8, 24))
+    
+    import tkinter as tk
+    btn = tk.Button(ctx.parent, text=text.value, font=("", size.value))
+    btn.pack()
+    return btn
+
+app = StorybookApplication()
+app.run()
+```
+
 ---
 
 ## 型安全・IDE支援
@@ -156,6 +189,7 @@ app.pub_switch_slot("main", MainContainer)
 - [はじめに](../getting-started.md)
 - [実装レシピ集](../cookbook.md)
 - [サンプル集](../examples.md)
+- [Storybookガイド](../storybook-guide.md)
 - [AIリファレンス](../ai-reference/REFERENCE_FULL.md)
   → ChatGPT・Copilot等でAIコーディングする際はこちらも活用ください
 - [GitHub Repository](https://github.com/vavavavavavavavava/pubsubtk)
